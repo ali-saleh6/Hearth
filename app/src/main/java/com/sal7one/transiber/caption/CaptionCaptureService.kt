@@ -108,6 +108,11 @@ class CaptionCaptureService : Service() {
                 engine.silenceSpeaker()
                 overlay.updateConfig { it.copy(speakCaptions = false) }
             } else stopSelf(startId)
+            ACTION_SPEAK -> if (active) {
+                val speaking = engine.currentConfig.speakCaptions
+                if (speaking) engine.silenceSpeaker()
+                overlay.updateConfig { it.copy(speakCaptions = !speaking) }
+            } else stopSelf(startId)
             ACTION_SETTINGS -> if (active) {
                 overlayVisible = true
                 overlay.centerOverlay(showSettings = true)
@@ -320,6 +325,7 @@ class CaptionCaptureService : Service() {
             .apply { if (failure == null) addAction(0, uiText(UiR.string.service_controls_f3d21), command(6, ACTION_SETTINGS)) }
             .addAction(0, uiText(UiR.string.service_stop_9e253), command(3, ACTION_STOP))
             .apply { if (failure == null && engine.currentConfig.speakCaptions) addAction(0, uiText(UiR.string.service_silence_voice_7c1e9), command(5, ACTION_SILENCE)) }
+            .apply { if (failure == null) addAction(0, if (engine.currentConfig.speakCaptions) uiText(UiR.string.service_stop_speaking) else uiText(UiR.string.service_speak_aloud), command(7, ACTION_SPEAK)) }
             .apply {
                 if (tapThrough) addAction(0, uiText(UiR.string.service_restore_controls_c97dd), command(2, ACTION_CENTER))
                 else addAction(0, if (overlayVisible) uiText(UiR.string.service_hide_bubble_658d0) else uiText(UiR.string.service_show_bubble_9a42e), command(4, ACTION_VISIBILITY))
@@ -347,12 +353,12 @@ class CaptionCaptureService : Service() {
         internal const val ACTION_PAUSE_ONLY = "com.sal7one.transiber.caption.PAUSE_ONLY"
         internal const val ACTION_RESUME = "com.sal7one.transiber.caption.RESUME"
         private const val ACTION_SILENCE = "com.sal7one.transiber.caption.SILENCE"
+        private const val ACTION_SPEAK = "com.sal7one.transiber.caption.SPEAK"
         private const val ACTION_SETTINGS = "com.sal7one.transiber.caption.SETTINGS"
         private const val ACTION_VISIBILITY = "com.sal7one.transiber.caption.VISIBILITY"
         private const val EXTRA_SOURCE = "source"
         private const val EXTRA_PROJECTION_RESULT = "projection_result"
         fun start(context: Context, source: CaptionSource, projectionResult: Intent?) {
-            context.stopService(Intent(context, com.sal7one.transiber.reading.ReadingOverlayService::class.java))
             androidx.core.content.ContextCompat.startForegroundService(context,
                 Intent(context, CaptionCaptureService::class.java).setAction(ACTION_START)
                     .putExtra(EXTRA_SOURCE, source).putExtra(EXTRA_PROJECTION_RESULT, projectionResult))

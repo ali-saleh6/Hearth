@@ -3,9 +3,9 @@ package com.sal7one.transiber.shortcuts
 import kotlinx.coroutines.CancellationException
 
 internal enum class OverlayShortcut(val label: String) {
-    CAPTIONS("Live captions"), READING("Screen translation")
+    CAPTIONS("Live captions")
 }
-internal enum class SetupFix { OVERLAY_PERMISSION, AUDIO_PERMISSION, CAPTIONS, MODELS, TRANSLATION, CAMERA, SESSION }
+internal enum class SetupFix { OVERLAY_PERMISSION, AUDIO_PERMISSION, CAPTIONS, MODELS, TRANSLATION, SESSION }
 internal data class SetupResult(val label: String, val detail: String, val passed: Boolean, val fix: SetupFix)
 internal data class SetupProbe(val label: String, val fix: SetupFix, val check: suspend () -> String)
 

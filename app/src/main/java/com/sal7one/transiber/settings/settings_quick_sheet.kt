@@ -22,7 +22,6 @@ internal fun SettingsQuickSheet(
     onDismiss: () -> Unit,
     onFeature: (SettingsLocation, SettingsFeature) -> Unit,
     onPage: (Int) -> Unit,
-    onReading: () -> Unit,
 ) {
     val uiText = rememberUiText()
 
@@ -38,7 +37,6 @@ internal fun SettingsQuickSheet(
         FeatureAction(uiText(UiR.string.ui_downloads_imports_a2a3b), Icons.Default.Download, { onPage(2) })
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { onPage(5) }) { Text(uiText(UiR.string.ui_caption_overlay_a4c78)) }
-            TextButton(onClick = onReading) { Text(uiText(UiR.string.ui_screen_overlay_773a6)) }
         }
         OutlinedButton(onClick = { onPage(3) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(uiText(UiR.string.ui_all_settings_diagnostics_7b22b)) }
     }

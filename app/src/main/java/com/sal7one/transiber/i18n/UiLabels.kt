@@ -5,29 +5,14 @@ import com.sal7one.transiber.R
 // Explicit UI adapters: persisted IDs and engine/provider metadata stay locale-independent.
 internal fun UiText.title(value: com.sal7one.transiber.home.HomeService): String = this(when (value) {
     com.sal7one.transiber.home.HomeService.CAPTIONS -> R.string.label_homeservice_captions_title
-    com.sal7one.transiber.home.HomeService.CONVERSATION -> R.string.label_homeservice_conversation_title
-    com.sal7one.transiber.home.HomeService.FACE -> R.string.label_homeservice_face_title
-    com.sal7one.transiber.home.HomeService.TEXT -> R.string.label_homeservice_text_title
-    com.sal7one.transiber.home.HomeService.CAMERA -> R.string.label_homeservice_camera_title
-    com.sal7one.transiber.home.HomeService.SCREEN -> R.string.label_homeservice_screen_title
 })
 
 internal fun UiText.description(value: com.sal7one.transiber.home.HomeService): String = this(when (value) {
     com.sal7one.transiber.home.HomeService.CAPTIONS -> R.string.label_homeservice_captions_description
-    com.sal7one.transiber.home.HomeService.CONVERSATION -> R.string.label_homeservice_conversation_description
-    com.sal7one.transiber.home.HomeService.FACE -> R.string.label_homeservice_face_description
-    com.sal7one.transiber.home.HomeService.TEXT -> R.string.label_homeservice_text_description
-    com.sal7one.transiber.home.HomeService.CAMERA -> R.string.label_homeservice_camera_description
-    com.sal7one.transiber.home.HomeService.SCREEN -> R.string.label_homeservice_screen_description
 })
 
 internal fun UiText.action(value: com.sal7one.transiber.home.HomeService): String = this(when (value) {
     com.sal7one.transiber.home.HomeService.CAPTIONS -> R.string.label_homeservice_captions_action
-    com.sal7one.transiber.home.HomeService.CONVERSATION -> R.string.label_homeservice_conversation_action
-    com.sal7one.transiber.home.HomeService.FACE -> R.string.label_homeservice_face_action
-    com.sal7one.transiber.home.HomeService.TEXT -> R.string.label_homeservice_text_action
-    com.sal7one.transiber.home.HomeService.CAMERA -> R.string.label_homeservice_camera_action
-    com.sal7one.transiber.home.HomeService.SCREEN -> R.string.label_homeservice_screen_action
 })
 
 internal fun UiText.label(value: com.sal7one.transiber.ui.MainTab): String = this(when (value) {
@@ -86,7 +71,6 @@ internal fun UiText.label(value: com.sal7one.transiber.settings.SettingsFeature)
     com.sal7one.transiber.settings.SettingsFeature.SPEECH -> R.string.label_settingsfeature_speech_label
     com.sal7one.transiber.settings.SettingsFeature.TRANSLATION -> R.string.label_settingsfeature_translation_label
     com.sal7one.transiber.settings.SettingsFeature.VOICES -> R.string.label_settingsfeature_voices_label
-    com.sal7one.transiber.settings.SettingsFeature.CAMERA -> R.string.label_settingsfeature_camera_label
 })
 
 internal fun UiText.label(value: com.sal7one.transiber.caption.CaptionMode): String = this(when (value) {
@@ -206,7 +190,6 @@ internal fun UiText.label(value: com.sal7one.transiber.ui.components.CapabilityS
 internal fun UiText.modelSection(id: String): String = when (id) {
     "Speech" -> this(R.string.ui_speech_d00d8)
     "Translation" -> this(R.string.label_settingsfeature_translation_label)
-    "Camera" -> this(R.string.label_maintab_camera_label)
     "Voices" -> this(R.string.ui_voices_40273)
     else -> id
 }
@@ -223,21 +206,6 @@ internal fun UiText.languageLabel(option: com.sal7one.common_jni.language.Langua
         else "${option.nativeName} · $translated"
 }
 
-internal fun UiText.label(profile: com.sal7one.transiber.ocr.OcrProfile): String = when(profile.id) {
-    "latin" -> this(R.string.ocr_latin)
-    "cjk" -> this(R.string.ocr_cjk)
-    "arabic" -> this(R.string.ocr_arabic)
-    "cyrillic" -> this(R.string.ocr_cyrillic)
-    "manga" -> this(R.string.ocr_manga)
-    "meiki" -> this(R.string.ocr_meiki)
-    else -> profile.label
-}
-internal fun UiText.description(profile: com.sal7one.transiber.ocr.OcrProfile): String = when(profile.id) {
-    "manga" -> this(R.string.ocr_manga_details)
-    "meiki" -> this(R.string.ocr_meiki_details)
-    "latin", "cjk", "arabic", "cyrillic" -> this(R.string.ocr_printed)
-    else -> profile.description
-}
 internal fun UiText.installation(source: com.sal7one.transiber.models.ModelSource): String = when(source.id) {
     "nemotron-3.5-asr-0.6b" -> this(R.string.install_nemotron)
     "qwen3-asr-0.6b" -> this(R.string.install_qwen)
@@ -258,11 +226,3 @@ internal fun UiText.label(preset: com.sal7one.transiber.caption.CaptionPreset): 
     else -> preset.label
 }
 
-internal fun UiText.label(status: com.sal7one.transiber.conversation.ConversationStatus): String = this(when(status) {
-    com.sal7one.transiber.conversation.ConversationStatus.READY -> R.string.phase_ready
-    com.sal7one.transiber.conversation.ConversationStatus.PREPARING -> R.string.phase_preparing
-    com.sal7one.transiber.conversation.ConversationStatus.LISTENING -> R.string.phase_listening
-    com.sal7one.transiber.conversation.ConversationStatus.FINISHING -> R.string.phase_finishing
-    com.sal7one.transiber.conversation.ConversationStatus.TRANSLATING -> R.string.phase_translating
-    com.sal7one.transiber.conversation.ConversationStatus.SPEAKING -> R.string.phase_speaking
-})

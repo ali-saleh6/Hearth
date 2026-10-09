@@ -60,6 +60,12 @@ RUN set -eux; \
     test -x "${ANDROID_HOME}/ndk/${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"; \
     test -x "${ANDROID_HOME}/build-tools/${ANDROID_BUILD_TOOLS}/aapt2"
 
+# A dependency in the graph asks for build-tools 35.0.0 beside the pinned 36.0.0.
+# Without it AGP auto-downloads it on every run, because --rm discards the
+# container filesystem the SDK lives in. Kept in its own layer so adding it does
+# not invalidate the NDK layer above and force a multi-GB re-download.
+RUN sdkmanager --install "build-tools;35.0.0" > /dev/null
+
 # scripts/verify-release.py resolves the NDK and build-tools through ANDROID_HOME.
 WORKDIR /workspace
 ENTRYPOINT ["/bin/bash", "-lc"]

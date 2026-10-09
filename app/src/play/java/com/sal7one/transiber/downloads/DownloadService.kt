@@ -10,7 +10,6 @@ import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
 import com.sal7one.transiber.MainActivity
 import com.sal7one.transiber.models.SpeechDownloads
-import com.sal7one.transiber.ocr.OcrCatalog
 import com.sal7one.common_jni.translation.TranslationCatalog
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient

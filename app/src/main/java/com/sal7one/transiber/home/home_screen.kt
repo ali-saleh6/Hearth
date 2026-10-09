@@ -1,84 +1,48 @@
 package com.sal7one.transiber.home
 
-import com.sal7one.transiber.R as UiR
-import com.sal7one.transiber.i18n.rememberUiText
+import com.sal7one.transiber.i18n.*
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
-import kotlin.math.abs
+import com.sal7one.transiber.ui.rememberIsTv
+import com.sal7one.transiber.ui.tvSafeArea
 
+/**
+ * Live captions is the only service, so Home is a single card rather than the
+ * old swipe carousel: paging arrows and page dots cannot be reached with a
+ * D-pad and had nothing left to page between.
+ */
 @Composable
-internal fun HomeScreen(onCaptions: () -> Unit, onTalk: (Boolean) -> Unit,
-    onTranslate: () -> Unit, onCamera: () -> Unit, onReading: () -> Unit, entryRevision: Int = 0, onSetup: () -> Unit) {
-    val uiText = rememberUiText()
-
+internal fun HomeScreen(onCaptions: () -> Unit, entryRevision: Int = 0, onSetup: () -> Unit) {
     val context = LocalContext.current
-    val initial = remember(entryRevision) { HomeServiceStore.selected(context) }
-    val pager = rememberPagerState(initialPage = initial.ordinal, pageCount = { HomeService.entries.size })
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(entryRevision) {
-        // An external link or Classic tab may have used another feature since Home was shown.
-        pager.scrollToPage(initial.ordinal)
-        snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { index ->
-            HomeServiceStore.remember(context, HomeService.entries[index])
-        }
-    }
-    fun open(service: HomeService) {
-        HomeServiceStore.remember(context, service)
-        when (service) {
-            HomeService.CAPTIONS -> onCaptions()
-            HomeService.CONVERSATION -> onTalk(false)
-            HomeService.FACE -> onTalk(true)
-            HomeService.TEXT -> onTranslate()
-            HomeService.CAMERA -> onCamera()
-            HomeService.SCREEN -> onReading()
-        }
-    }
-    Column(Modifier.fillMaxSize()) {
+    val isTv = rememberIsTv()
+    // A remote has no pointer, so something must hold focus before the first
+    // key arrives or the D-pad appears dead.
+    val openCaptions = remember { FocusRequester() }
+    LaunchedEffect(entryRevision) { runCatching { openCaptions.requestFocus() } }
+
+    Column(
+        Modifier.fillMaxSize().tvSafeArea(isTv),
+        verticalArrangement = if (isTv) Arrangement.Center else Arrangement.Top,
+    ) {
         HomeEasySetupEntry(onSetup = onSetup)
-        HorizontalPager(state = pager, contentPadding = PaddingValues(horizontal = 30.dp), pageSpacing = 14.dp,
-            key = { HomeService.entries[it].id }, verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f).fillMaxWidth(), beyondViewportPageCount = 1) { index ->
-            val distance = abs((pager.currentPage - index) + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
-            HomeServiceCard(HomeService.entries[index], Modifier.graphicsLayer {
-                scaleX = 1f - distance * .045f
-                scaleY = 1f - distance * .045f
-                translationY = distance * 10.dp.toPx()
-            }) { open(HomeService.entries[index]) }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            IconButton(onClick = { scope.launch { pager.animateScrollToPage(pager.settledPage - 1) } },
-                enabled = pager.settledPage > 0 && !pager.isScrollInProgress) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, uiText(UiR.string.ui_previous_service_9b734))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.semantics { contentDescription = uiText(UiR.string.ui_service_1_s_of_2_s_04283, pager.settledPage + 1, HomeService.entries.size) }) {
-                HomeService.entries.forEachIndexed { index, _ ->
-                    Surface(shape = androidx.compose.foundation.shape.CircleShape,
-                        color = if (index == pager.settledPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                        modifier = Modifier.size(width = if (index == pager.settledPage) 22.dp else 6.dp, height = 6.dp)) {}
-                }
-            }
-            IconButton(onClick = { scope.launch { pager.animateScrollToPage(pager.settledPage + 1) } },
-                enabled = pager.settledPage < HomeService.entries.lastIndex && !pager.isScrollInProgress) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, uiText(UiR.string.ui_next_service_6d174))
-            }
+        HomeServiceCard(
+            service = HomeService.CAPTIONS,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+                .widthIn(max = if (isTv) 720.dp else 560.dp)
+                .then(if (isTv) Modifier else Modifier.weight(1f)),
+            actionFocusRequester = openCaptions,
+            compactArtwork = isTv,
+        ) {
+            HomeServiceStore.remember(context, HomeService.CAPTIONS)
+            onCaptions()
         }
     }
 }

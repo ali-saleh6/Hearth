@@ -6,7 +6,6 @@ import com.sal7one.transiber.byok.*
 import com.sal7one.transiber.caption.*
 import com.sal7one.transiber.downloads.*
 import com.sal7one.transiber.models.SpeechDownloads
-import com.sal7one.transiber.reading.ReadingOverlayService
 import com.sal7one.transiber.runtime.LocalWorkGate
 import com.sal7one.transiber.shortcuts.checkSpeechAssetPresence
 import com.sal7one.transiber.translation.*
@@ -32,7 +31,7 @@ internal class EasySetupActions(context: Context) {
             if(ByokPolicy.FEATURE_BYOK) FileDownloads(context).list() else emptyList())
     }
     private fun idle() {
-        check(!CaptionCaptureService.running.value && !ReadingOverlayService.running.value && LocalWorkGate.owner.value==null) {
+        check(!CaptionCaptureService.running.value && LocalWorkGate.owner.value==null) {
             "Stop the current session before changing setup."
         }
     }
@@ -57,7 +56,6 @@ internal class EasySetupActions(context: Context) {
         idle();val status=localStatus(translatorId);check(status.ready) { "Wait for both models to install." }
         CaptionConfigStore.update(context) { EasySetupPreset.local(it,checkNotNull(status.speech).id,translatorId,source,target) }
         ConversationTranslationSettings.useEverywhere(context,"local",translatorId)
-        com.sal7one.transiber.ocr.OcrPreferences(context).update {it.copy(translate=true)}
     }
     suspend fun applyCloud(provider: CloudConfigStore.Provider, baseUrl: String, model: String, key: String, target: String) {
         check(ByokPolicy.FEATURE_BYOK) { "Cloud connections are unavailable in the offline build." };idle()

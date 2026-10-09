@@ -87,6 +87,8 @@
     <string name="ui_drag_to_move_captions_51a37" formatted="false">"拖动以移动字幕"</string>
     <string name="ui_resume_captions_b31f8" formatted="false">"继续字幕"</string>
     <string name="ui_pause_captions_dc66c" formatted="false">"暂停字幕"</string>
+    <string name="ui_start_speaking_aloud" formatted="false">"朗读"</string>
+    <string name="ui_stop_speaking_aloud" formatted="false">"停止朗读"</string>
     <string name="ui_clear_previous_text_and_pending_translations_4cbd5" formatted="false">"清除此前文本和待处理翻译"</string>
     <string name="ui_caption_settings_da0c8" formatted="false">"字幕设置"</string>
     <string name="ui_stop_captions_58b64" formatted="false">"停止字幕"</string>
@@ -967,5 +969,7 @@
     <string name="ui_media_volume_error">无法调整媒体音量：%1$s</string>
     <string name="ui_speaker_live_settings_note">声音与朗读音量用于新的朗读行。兼容的媒体应用可能会在朗读期间降低音量。</string>
     <string name="service_silence_voice_7c1e9">静音语音</string>
+    <string name="service_speak_aloud">朗读</string>
+    <string name="service_stop_speaking">停止朗读</string>
     <string name="service_controls_f3d21">控制</string>
 </resources>

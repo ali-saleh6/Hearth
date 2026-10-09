@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -324,6 +326,13 @@ private fun ControlStrip(
 
         if (!narrow) StatusBadge(state = state, cfg = cfg, palette = palette, modifier = Modifier.weight(1f).align(Alignment.CenterVertically))
 
+        IconButton(onClick = { onConfigChange { it.copy(speakCaptions = !it.speakCaptions) } }, enabled = state.status != Status.ERROR, modifier = Modifier.size(controlSize)) {
+            Icon(
+                if (cfg.speakCaptions) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                if (cfg.speakCaptions) uiText(UiR.string.ui_stop_speaking_aloud) else uiText(UiR.string.ui_start_speaking_aloud),
+                tint = if (cfg.speakCaptions) palette.accent else palette.onSurfaceFaded,
+            )
+        }
         IconButton(onClick = { onConfigChange { it.copy(paused = !it.paused) } }, enabled = state.status != Status.ERROR, modifier = Modifier.size(controlSize)) {
             Icon(
                 if (cfg.paused) Icons.Default.PlayArrow else Icons.Default.Pause,

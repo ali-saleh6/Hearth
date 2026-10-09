@@ -87,6 +87,8 @@
     <string name="ui_drag_to_move_captions_51a37" formatted="false">"Drag to move captions"</string>
     <string name="ui_resume_captions_b31f8" formatted="false">"Resume captions"</string>
     <string name="ui_pause_captions_dc66c" formatted="false">"Pause captions"</string>
+    <string name="ui_start_speaking_aloud" formatted="false">"Speak aloud"</string>
+    <string name="ui_stop_speaking_aloud" formatted="false">"Stop speaking aloud"</string>
     <string name="ui_clear_previous_text_and_pending_translations_4cbd5" formatted="false">"Clear previous text and pending translations"</string>
     <string name="ui_caption_settings_da0c8" formatted="false">"Caption settings"</string>
     <string name="ui_stop_captions_58b64" formatted="false">"Stop captions"</string>
@@ -967,5 +969,7 @@
     <string name="ui_media_volume_error">Could not change media volume: %1$s</string>
     <string name="ui_speaker_live_settings_note">Voice and TTS loudness apply to new spoken lines. Compatible media apps may lower their audio while TTS speaks.</string>
     <string name="service_silence_voice_7c1e9">Silence voice</string>
+    <string name="service_speak_aloud">Speak aloud</string>
+    <string name="service_stop_speaking">Stop speaking</string>
     <string name="service_controls_f3d21">Controls</string>
 </resources>

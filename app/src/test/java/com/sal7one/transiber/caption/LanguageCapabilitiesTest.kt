@@ -5,7 +5,6 @@ import com.sal7one.transiber.byok.CloudSpeechLanguages
 import com.sal7one.transiber.byok.OpenAiTranslateClient
 import com.sal7one.transiber.setup.EasySetupPreset
 import com.sal7one.transiber.translation.*
-import com.sal7one.transiber.ocr.*
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import org.junit.Assert.*
 import org.junit.Test
@@ -61,23 +60,20 @@ class LanguageCapabilitiesTest {
             assertThrows(IllegalArgumentException::class.java) { OpenAiTranslateClient.sessionUpdate(invalid) }
         }
     }
-    @Test fun runtimeMlKitCapabilitiesFlowToCaptionAndOcrAndStayEmptyInFoss() {
+    @Test fun runtimeMlKitCapabilitiesFlowToCaptionAndStayEmptyInFoss() {
         assertEquals(PlatformTranslation.languages, TranslationOptions.mlKitCodes)
         assertEquals(PlatformTranslation.languages, TranslationOptions.languages(TranslationOptions.ML_KIT))
         val config=CaptionOverlayConfig(engine=CaptionEngineChoice.NEMOTRON,textTranslationProviderId="local",
             localTranslationModelId=TranslationOptions.ML_KIT,streamLanguage="auto")
         assertEquals(PlatformTranslation.languages,CaptionLanguages.target(config,CloudConfigStore.SttMode.BATCH).codes)
-        val ocr=ocrTranslationTargets(OcrSelection(source="en"),TranslationOptions.ML_KIT,null,true)
-        assertEquals(PlatformTranslation.languages - "en",ocr)
         assertEquals(PlatformTranslation.available, "ar" in PlatformTranslation.languages)
     }
-    @Test fun discoveredDirectionsReachCaptionAndOcrWithoutAddingAnotherStaticList() {
+    @Test fun discoveredDirectionsReachCaptionsWithoutAddingAnotherStaticList() {
         val discovered=CloudTranslationProtocol.parseLanguages(TextTranslationProvider.LIBRETRANSLATE,listOf("""[
             {"code":"ja","targets":["sv","fr"]}, {"code":"sv","targets":["ja"]}
         ]"""))
         val config=CaptionOverlayConfig(engine=CaptionEngineChoice.NEMOTRON,textTranslationProviderId="libretranslate",streamLanguage="ja")
         assertEquals(setOf("sv","fr"), CaptionLanguages.target(config,CloudConfigStore.SttMode.BATCH,discovered).codes)
-        assertEquals(setOf("sv","fr"),ocrTranslationTargets(OcrSelection("manga","ja","ar","libretranslate"),"unknown",discovered,true))
         assertFalse(discovered.supports("sv","fr"))
     }
 
@@ -86,16 +82,5 @@ class LanguageCapabilitiesTest {
         for (code in listOf("ar", "he", "bn", "yue", "sw", "fil", "ur")) assertTrue(code in source.codes)
         assertFalse("zz" in source.codes)
         assertFalse(source.allowsLanguageCode)
-    }
-    @Test fun paddleLanguagesSelectTheMatchingPinnedReaderWithoutChangingTranslation() {
-        val current = OcrSelection("manga", "ja", "ar")
-        for (code in listOf("fi", "vi", "tr", "pl", "fil")) {
-            val next = current.withSource(code)
-            assertEquals("latin",next.profileId)
-            assertEquals("ar",next.target)
-        }
-        for (code in listOf("fa", "ur", "ps", "sd")) assertEquals("arabic",current.withSource(code).profileId)
-        assertEquals("arabic",OcrSelection("arabic", "ar", "en").withSource("en").profileId)
-        assertEquals("meiki",current.withProfile("meiki").withSource("ja").profileId)
     }
 }

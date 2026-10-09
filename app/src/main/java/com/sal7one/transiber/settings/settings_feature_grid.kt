@@ -27,7 +27,6 @@ internal fun SettingsFeatureGrid(location: SettingsLocation, onFeature: (Setting
                             SettingsFeature.SPEECH -> 0xFF448EFF
                             SettingsFeature.TRANSLATION -> 0xFFAC6CF6
                             SettingsFeature.VOICES -> 0xFF2FC5A8
-                            SettingsFeature.CAMERA -> 0xFFEEA34D
                         })),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface)) {
@@ -36,13 +35,11 @@ internal fun SettingsFeatureGrid(location: SettingsLocation, onFeature: (Setting
                                 SettingsFeature.SPEECH -> Icons.Default.Mic
                                 SettingsFeature.TRANSLATION -> Icons.Default.Translate
                                 SettingsFeature.VOICES -> Icons.Default.RecordVoiceOver
-                                SettingsFeature.CAMERA -> Icons.Default.CameraAlt
                             }, null, tint = MaterialTheme.colorScheme.primary)
                             Text(when(feature) {
                                 SettingsFeature.SPEECH -> uiText(UiR.string.ui_speech_d00d8)
                                 SettingsFeature.TRANSLATION -> uiText(UiR.string.ui_translation_ac26a)
                                 SettingsFeature.VOICES -> uiText(UiR.string.ui_voices_40273)
-                                SettingsFeature.CAMERA -> uiText(UiR.string.ui_camera_ocr_c1207)
                             }, style = MaterialTheme.typography.titleSmall)
                         }
                     }

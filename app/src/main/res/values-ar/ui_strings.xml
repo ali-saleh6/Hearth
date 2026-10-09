@@ -87,6 +87,8 @@
     <string name="ui_drag_to_move_captions_51a37" formatted="false">"اسحب لتحريك النص"</string>
     <string name="ui_resume_captions_b31f8" formatted="false">"استئناف النص المباشر"</string>
     <string name="ui_pause_captions_dc66c" formatted="false">"إيقاف النص مؤقتًا"</string>
+    <string name="ui_start_speaking_aloud" formatted="false">"النطق بصوت عالٍ"</string>
+    <string name="ui_stop_speaking_aloud" formatted="false">"إيقاف النطق بصوت عالٍ"</string>
     <string name="ui_clear_previous_text_and_pending_translations_4cbd5" formatted="false">"مسح النص السابق والترجمات المعلّقة"</string>
     <string name="ui_caption_settings_da0c8" formatted="false">"إعدادات النص المباشر"</string>
     <string name="ui_stop_captions_58b64" formatted="false">"إيقاف النص المباشر"</string>
@@ -967,5 +969,7 @@
     <string name="ui_media_volume_error">تعذّر تغيير صوت الوسائط: %1$s</string>
     <string name="ui_speaker_live_settings_note">يُطبَّق الصوت ومستوى القراءة على الأسطر الجديدة. قد تخفض تطبيقات الوسائط المتوافقة صوتها أثناء القراءة.</string>
     <string name="service_silence_voice_7c1e9">إسكات الصوت</string>
+    <string name="service_speak_aloud">النطق بصوت عالٍ</string>
+    <string name="service_stop_speaking">إيقاف النطق</string>
     <string name="service_controls_f3d21">التحكم</string>
 </resources>

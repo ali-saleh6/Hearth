@@ -143,7 +143,6 @@ private fun CaptionStartScreen(requestedSource: CaptionSource?, onDone: () -> Un
         starting = true; startError = null
         scope.launch {
             try {
-                context.stopService(Intent(context, com.sal7one.transiber.reading.ReadingOverlayService::class.java))
                 if (!CaptionCaptureService.running.value) com.sal7one.transiber.runtime.LocalWorkGate.awaitIdle()
                 CaptionCaptureService.start(context, source, token)
                 onDone()

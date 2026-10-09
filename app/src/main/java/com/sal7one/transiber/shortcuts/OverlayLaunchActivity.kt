@@ -32,7 +32,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withResumed
 import com.sal7one.transiber.MainActivity
 import com.sal7one.transiber.caption.*
-import com.sal7one.transiber.reading.ReadingOverlayService
 import com.sal7one.transiber.runtime.LocalWorkGate
 import com.sal7one.transiber.ui.theme.HearthTheme
 import kotlinx.coroutines.CancellationException
@@ -43,7 +42,7 @@ import kotlinx.coroutines.launch
 class OverlayLaunchActivity : AppCompatActivity() {
     private var shortcut by mutableStateOf(OverlayShortcut.CAPTIONS)
     private var phase by mutableStateOf("checking")
-    private val defaultFix get() = if (shortcut == OverlayShortcut.READING) SetupFix.CAMERA else SetupFix.CAPTIONS
+    private val defaultFix get() = SetupFix.CAPTIONS
     private var results by mutableStateOf<List<SetupResult>>(emptyList())
     private var signature: String? = null
     private var source = CaptionSource.PLAYBACK_CAPTURE
@@ -108,7 +107,6 @@ class OverlayLaunchActivity : AppCompatActivity() {
     }
     private fun recoverRunning(): Boolean = when {
         shortcut == OverlayShortcut.CAPTIONS && CaptionCaptureService.running.value -> { CaptionCaptureService.show(this); true }
-        shortcut == OverlayShortcut.READING && ReadingOverlayService.running.value -> { ReadingOverlayService.recover(this); true }
         else -> false
     }
     private fun checkAndStart() {
@@ -140,9 +138,7 @@ class OverlayLaunchActivity : AppCompatActivity() {
             if (shortcut == OverlayShortcut.CAPTIONS && source == CaptionSource.MIC) { startChecked(null); return }
             phase = "projection"
             val manager = getSystemService(MediaProjectionManager::class.java)
-            val request = if (shortcut == OverlayShortcut.READING && Build.VERSION.SDK_INT >= 34)
-                manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay()) else manager.createScreenCaptureIntent()
-            projection.launch(request)
+            projection.launch(manager.createScreenCaptureIntent())
         } catch (e: Exception) { failure("Screen sharing", e.message ?: e.toString(), defaultFix) }
     }
     private fun startChecked(token: Intent?) {
@@ -154,9 +150,7 @@ class OverlayLaunchActivity : AppCompatActivity() {
                 if (!results.ready) { phase = "diagnostics"; return@launch }
                 check(signature == checked.signature) { "Setup changed while Android permissions were open. Check again to start with the new setup." }
                 lifecycle.withResumed {
-                    if (shortcut == OverlayShortcut.CAPTIONS) CaptionCaptureService.start(this@OverlayLaunchActivity, source, token)
-                    else ContextCompat.startForegroundService(this@OverlayLaunchActivity,
-                        Intent(this@OverlayLaunchActivity, ReadingOverlayService::class.java).putExtra("projection", requireNotNull(token)))
+                    CaptionCaptureService.start(this@OverlayLaunchActivity, source, token)
                     finish()
                 }
             } catch (e: CancellationException) { throw e }
@@ -168,17 +162,16 @@ class OverlayLaunchActivity : AppCompatActivity() {
             SetupFix.OVERLAY_PERMISSION -> startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             SetupFix.AUDIO_PERMISSION -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
             SetupFix.SESSION -> {
-                if (CaptionCaptureService.running.value || ReadingOverlayService.running.value) {
+                if (CaptionCaptureService.running.value) {
                     phase = "checking"
-                    if (CaptionCaptureService.running.value) CaptionCaptureService.stop(this)
-                    stopService(Intent(this, ReadingOverlayService::class.java))
+                    CaptionCaptureService.stop(this)
                     lifecycleScope.launch {
-                        repeat(50) { if (LocalWorkGate.owner.value == null && !CaptionCaptureService.running.value && !ReadingOverlayService.running.value) { checkAndStart(); return@launch }; delay(100) }
+                        repeat(50) { if (LocalWorkGate.owner.value == null && !CaptionCaptureService.running.value) { checkAndStart(); return@launch }; delay(100) }
                         checkAndStart()
                     }
-                } else openPage(when (LocalWorkGate.owner.value) { "Conversation" -> 7; "Camera OCR" -> 10; else -> 8 })
+                } else openPage(8)
             }
-            else -> openPage(when (action) { SetupFix.MODELS -> 1; SetupFix.TRANSLATION -> 9; SetupFix.CAMERA -> 10; else -> 0 })
+            else -> openPage(when (action) { SetupFix.MODELS -> 1; SetupFix.TRANSLATION -> 9; else -> 0 })
         }
     }
     private fun openPage(page: Int) { startActivity(Intent(this, MainActivity::class.java).putExtra("page", page).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }
@@ -201,7 +194,7 @@ class OverlayLaunchActivity : AppCompatActivity() {
                                 Text("${if (result.passed) uiText(UiR.string.ui_ready_20c7c) else uiText(UiR.string.needs_attention)} · ${result.label}", style = MaterialTheme.typography.titleMedium)
                                 Text(result.detail, color = if (result.passed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
                                 if (result.label != "Screen sharing") TextButton(onClick = { fix(result.fix) }) {
-                                    Text(if (result.fix == SetupFix.SESSION && (CaptionCaptureService.running.value || ReadingOverlayService.running.value)) uiText(UiR.string.ui_stop_other_overlay_retry_1a172) else uiText(UiR.string.ui_open_settings_fd710))
+                                    Text(if (result.fix == SetupFix.SESSION && CaptionCaptureService.running.value) uiText(UiR.string.ui_stop_other_overlay_retry_1a172) else uiText(UiR.string.ui_open_settings_fd710))
                                 }
                             }
                         }

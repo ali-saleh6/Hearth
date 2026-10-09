@@ -10,25 +10,23 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.sal7one.transiber.caption.CaptionCaptureService
-import com.sal7one.transiber.reading.ReadingOverlayService
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.StateFlow
 
-abstract class OverlayTileService : TileService() {
+/** Quick-settings tile for live captions, the only overlay Hearth now runs. */
+class CaptionTileService : TileService() {
     private val uiText get() = this.localizedUiText()
 
-    internal abstract val shortcut: OverlayShortcut
+    private val shortcut = OverlayShortcut.CAPTIONS
     private var listening: CoroutineScope? = null
-    private val running: StateFlow<Boolean> get() = if (shortcut == OverlayShortcut.CAPTIONS) CaptionCaptureService.running else ReadingOverlayService.running
     override fun onStartListening() {
         super.onStartListening()
         listening?.cancel()
         listening = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { scope ->
-            scope.launch { running.collect { active ->
+            scope.launch { CaptionCaptureService.running.collect { active ->
                 qsTile?.apply {
-                    label = uiText(if (shortcut == OverlayShortcut.CAPTIONS) UiR.string.tile_captions else UiR.string.tile_reading)
+                    label = uiText(UiR.string.tile_captions)
                     state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-                    contentDescription = "${uiText(if (shortcut == OverlayShortcut.CAPTIONS) UiR.string.tile_captions else UiR.string.tile_reading)} · ${if (active) uiText(UiR.string.service_tap_to_show_578b6) else uiText(UiR.string.service_tap_to_start_b11de)}"
+                    contentDescription = "${uiText(UiR.string.tile_captions)} · ${if (active) uiText(UiR.string.service_tap_to_show_578b6) else uiText(UiR.string.service_tap_to_start_b11de)}"
                     if (Build.VERSION.SDK_INT >= 29) subtitle = if (active) uiText(UiR.string.service_tap_to_show_578b6) else uiText(UiR.string.service_tap_to_start_b11de)
                     updateTile()
                 }
@@ -53,5 +51,3 @@ abstract class OverlayTileService : TileService() {
         }
     }
 }
-class CaptionTileService : OverlayTileService() { override val shortcut = OverlayShortcut.CAPTIONS }
-class ReadingTileService : OverlayTileService() { override val shortcut = OverlayShortcut.READING }

@@ -2,8 +2,6 @@ package com.sal7one.transiber.downloads
 
 import com.sal7one.transiber.voice.VoiceCatalog
 import com.sal7one.transiber.voice.VoiceModels
-import com.sal7one.transiber.ocr.OcrCatalog
-import com.sal7one.transiber.ocr.OcrModels
 
 import android.app.DownloadManager
 import android.content.Context
@@ -205,11 +203,6 @@ class FileDownloads(private val context: Context) {
      val spec = TranslationCatalog.models.first { it.id == modelId }
      com.sal7one.common_jni.model.ModelIntegrity.inspect(LocalTranslationModels(File(context.filesDir, "translation-models")).file(spec), spec.sha256)
     }
-    OcrCatalog.find(modelId) != null -> {
-     val part = checkNotNull(OcrCatalog.find(modelId))
-     val file = OcrModels(File(context.filesDir, "ocr-models")).file(part)
-     check(file.inputStream().use { DownloadIntegrity.matches(it, checkNotNull(asset)) }) { "Installed OCR checksum failed" }
-    }
     VoiceCatalog.find(modelId) != null -> {
      val part = checkNotNull(VoiceCatalog.find(modelId))
      val file = VoiceModels(File(context.filesDir, "voice-models")).file(part)
@@ -271,13 +264,6 @@ class FileDownloads(private val context: Context) {
    } ?: error("Cannot open downloaded voice model")
    return@withContext installed.id
   }
-  OcrCatalog.find(modelId)?.let { asset ->
-   val job = currentCoroutineContext()
-   val installed = context.contentResolver.openInputStream(uri(id))?.use { input ->
-    OcrModels(File(context.filesDir, "ocr-models")).import(input, asset) { job.ensureActive() }
-   } ?: error("Cannot open downloaded OCR model")
-   return@withContext installed.id
-  }
   val speech = SpeechDownloads.find(modelId)
   if (speech != null) {
    val job = currentCoroutineContext()
@@ -319,17 +305,6 @@ class FileDownloads(private val context: Context) {
    val voice=asset.filename.removeSuffix(".json").takeIf {it in VoiceCatalog.voices} ?: "F1"
    require(VoiceModels(File(context.filesDir,"voice-models")).ready(voice)) { "Finish downloading the voice engine before selecting it" }
    context.getSharedPreferences("voice-output",0).edit().putString("backend","supertonic").putString("voice",voice).apply()
-   return
-  }
-  OcrCatalog.find(modelId)?.let { asset ->
-   require(item.installed) { "OCR model is not installed" }
-   if(asset.id == OcrCatalog.detector.id)return
-   OcrCatalog.profiles.firstOrNull { profile -> profile.assets.any { it.id == asset.id } }?.let { profile ->
-    require(OcrModels(File(context.filesDir, "ocr-models")).ready(profile)) { "Finish installing all files for ${profile.label} first" }
-    val settings = context.getSharedPreferences("camera-translate", 0)
-    val source = settings.getString("source", "en")
-    settings.edit().putString("profile", profile.id).putString("source", source?.takeIf { it in profile.languages } ?: profile.languages.first()).apply()
-   }
    return
   }
   val speech = SpeechDownloads.find(modelId)

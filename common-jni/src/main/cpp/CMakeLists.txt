@@ -144,6 +144,12 @@ if(WITH_WHISPER)
         list(FILTER GGML_CPU_SOURCES EXCLUDE REGEX ".*/arch/avx/.*")
         list(FILTER GGML_CPU_SOURCES EXCLUDE REGEX ".*/spacemit/.*")
         list(FILTER GGML_CPU_SOURCES EXCLUDE REGEX ".*/kleidiai/.*")
+        # Dead code here, and it does not build for 32-bit ARM. GGML_USE_LLAMAFILE is
+        # never defined, so ggml-cpu.c neither includes sgemm.h nor calls
+        # llamafile_sgemm. Upstream also guards its fp16 loads on __ARM_NEON rather
+        # than __ARM_FEATURE_FP16_VECTOR_ARITHMETIC, as the FIXME beside them admits,
+        # so on armeabi-v7a it reaches vld1q_f16, which armv7 NEON does not provide.
+        list(FILTER GGML_CPU_SOURCES EXCLUDE REGEX ".*/llamafile/.*")
         list(APPEND GGML_SOURCES ${GGML_CPU_SOURCES})
     endif()
 

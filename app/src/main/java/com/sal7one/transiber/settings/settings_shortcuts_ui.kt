@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sal7one.transiber.R
 import com.sal7one.transiber.shortcuts.CaptionTileService
-import com.sal7one.transiber.shortcuts.ReadingTileService
 
 @Composable
 internal fun SettingsShortcutsUi() {
@@ -27,7 +26,6 @@ internal fun SettingsShortcutsUi() {
     Text(uiText(UiR.string.ui_start_from_your_notification_shade_each_tile_checks_setup_before_63465), style = MaterialTheme.typography.bodySmall)
     listOf(
         Triple(uiText(UiR.string.ui_live_captions_83fd1), CaptionTileService::class.java, R.drawable.ic_tile_captions),
-        Triple(uiText(UiR.string.ui_screen_translation_d51de), ReadingTileService::class.java, R.drawable.ic_tile_reading),
     ).forEach { (label, service, icon) ->
         if (Build.VERSION.SDK_INT >= 33) OutlinedButton(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), onClick = {
             try {

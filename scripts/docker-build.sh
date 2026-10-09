@@ -20,17 +20,24 @@ if ! docker image inspect "$image" >/dev/null 2>&1; then
     -f "$repo/docker/android-build.Dockerfile" -t "$image" "$repo"
 fi
 
-command=(./gradlew --no-daemon $tasks)
+# gradle.properties asks for -Xmx6g, which the Docker VM cannot honour next to a
+# separate Kotlin daemon: the kernel OOM-kills the build daemon mid-R8. A
+# command-line -D overrides gradle.properties, so bound both JVMs to fit.
+# --no-watch-fs: Gradle's native file watcher cannot poll a macOS bind mount.
+gradle="./gradlew --no-daemon --no-watch-fs"
+gradle+=" -Dorg.gradle.jvmargs='-Xmx4g -Dfile.encoding=UTF-8'"
+gradle+=" -Dkotlin.daemon.jvmargs=-Xmx1536m"
+
+command="$gradle $tasks"
 if [[ ${VERIFY:-0} == 1 ]]; then
-  command+=(\&\& python3 scripts/verify-release.py)
+  command+=" && python3 scripts/verify-release.py"
 fi
 
-echo "==> Running: ${command[*]}"
+echo "==> Running: $command"
 docker run --rm --platform=linux/amd64 \
   -v "$repo:/workspace" \
   -v hearth-gradle:/gradle \
-  -e GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4g" \
-  "$image" "${command[*]}"
+  "$image" "$command"
 
 echo "==> APKs on the host:"
 find "$repo/app/build/outputs/apk" -name '*.apk' -print 2>/dev/null || echo "  none produced"
