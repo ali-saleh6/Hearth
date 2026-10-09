@@ -1,0 +1,4 @@
+# docker/android-build.Dockerfile is toolchain-only and COPYs nothing: the
+# repository is bind-mounted at run time instead. Keep the build context empty
+# so sending it does not copy the vendored native libraries and model assets.
+*
