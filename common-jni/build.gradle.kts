@@ -6,7 +6,9 @@ android {
  defaultConfig {
   minSdk = 28
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-  ndk { abiFilters += "arm64-v8a" }
+  // armeabi-v7a keeps 32-bit Android TV installable: the heavy speech/translation
+  // runtimes stay arm64-only and self-disable there, Vosk and ONNX still work.
+  ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
   externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON") } }
   consumerProguardFiles("consumer-rules.pro")
  }

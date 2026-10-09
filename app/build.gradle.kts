@@ -13,7 +13,9 @@ android {
   targetSdk = 36
   versionCode = 81
   versionName = "0.23.8"
-  ndk { abiFilters += "arm64-v8a" }
+  // armeabi-v7a keeps 32-bit Android TV installable: the heavy speech/translation
+  // runtimes stay arm64-only and self-disable there, Vosk and ONNX still work.
+  ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
  }
  flavorDimensions += "distribution"
  productFlavors {

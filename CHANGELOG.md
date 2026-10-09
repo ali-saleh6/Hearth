@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 32-bit Android TV installability
+
+- Install on 32-bit Android TV / Google TV. The APK shipped only `arm64-v8a`, so the TV package installer refused it as incompatible. Package `armeabi-v7a` alongside it with the Vosk and ONNX Runtime 32-bit runtimes from the same pinned upstream AARs; the large speech and translation runtimes stay arm64-only and self-disable where they are absent.
+- List the app in the TV launcher: add `LEANBACK_LAUNCHER` and a banner. Declare `android.hardware.camera` and `camera.autofocus` optional, which the `CAMERA` permission otherwise implies as required and which filtered the app off cameraless devices.
+- Report absent local translation as unavailable rather than outdated, and verify packaged ABIs per ABI, enforcing 16KB page alignment only on arm64.
+
 ## 0.23.8 — 2026-10-03 · conversation turns and following
 
 - Remove the silent one-minute conversation cutoff. Record until Finish; keep bounded audio queues and preserve finalized text independently of the caption display tail.

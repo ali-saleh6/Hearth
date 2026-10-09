@@ -50,6 +50,10 @@ assert len(json.loads((ocr_assets/'manga.json').read_text())) == manga['classes'
 
 expected_libs = {'libtransiber_translation.so','libcommon_jni.so','libc++_shared.so','libvosk.so','libonnxruntime.so','libhearth_qwen.so','libhearth_nemotron.so','libandroidx.graphics.path.so','libdatastore_shared_counter.so','libimage_processing_util_jni.so'}
 platform = {'liblog.so','libandroid.so','libjnigraphics.so','libm.so','libdl.so','libc.so','libz.so'}
+# 32-bit Android TV support: armeabi-v7a ships only what fits a 3GB address space.
+# The large speech/translation runtimes stay arm64-only and self-disable at load.
+arm64_only_libs = {'libhearth_qwen.so','libhearth_nemotron.so','libtransiber_translation.so'}
+supported_abis = {'arm64-v8a', 'armeabi-v7a'}
 for flavor in ['play','foss']:
     flavor_libs = expected_libs | ({"libtranslate_jni.so"} if flavor == "play" else set())
     suffix = '-unsigned' if build_type == 'release' else ''
@@ -57,17 +61,24 @@ for flavor in ['play','foss']:
     assert apk.is_file(), f'Build {flavor} {build_type} first'
     with zipfile.ZipFile(apk) as archive, tempfile.TemporaryDirectory() as tmp:
         native = [n for n in archive.namelist() if n.startswith('lib/') and n.endswith('.so')]
-        assert {Path(n).name for n in native} == flavor_libs, native
-        assert all(n.startswith('lib/arm64-v8a/') for n in native)
+        abis = {n.split('/')[1] for n in native}
+        assert abis == supported_abis, abis
+        for abi in sorted(abis):
+            packaged = {Path(n).name for n in native if n.split('/')[1] == abi}
+            assert packaged == (flavor_libs if abi == 'arm64-v8a' else flavor_libs - arm64_only_libs), (abi, packaged)
         for name in native:
-            file = Path(tmp)/Path(name).name
+            # Keep the ABI in the scratch path: the same basename exists per ABI.
+            file = Path(tmp)/name.split('/')[1]/Path(name).name
+            file.parent.mkdir(parents=True, exist_ok=True)
             data = archive.read(name)
             if name in vendor_hashes:
                 assert hashlib.sha256(data).hexdigest() == vendor_hashes[name], f'Packaged vendor runtime changed: {name}'
             file.write_bytes(data)
             info = subprocess.check_output([readelf, '-lW', file], text=True)
             aligns = [int(line.split()[-1],16) for line in info.splitlines() if line.strip().startswith('LOAD ')]
-            assert aligns and min(aligns) >= 16384, f'{name}: page alignment {aligns}'
+            assert aligns, f'{name}: no LOAD segments'
+            if name.startswith('lib/arm64-v8a/'):
+                assert min(aligns) >= 16384, f'{name}: page alignment {aligns}'
             dynamic = subprocess.check_output([readelf, '-d', file], text=True)
             needed = set(re.findall(r'\(NEEDED\).*?\[(.*?)\]', dynamic))
             assert not needed - flavor_libs - platform, (name, needed)
@@ -112,5 +123,5 @@ for flavor in ['play','foss']:
     badging = subprocess.check_output([aapt, 'dump', 'badging', apk], text=True)
     package = "com.sal7one.transiber.qa" if build_type == "qa" else "com.sal7one.transiber"
     assert f"name='{package}'" in badging
-    print(f'{flavor} {build_type}: {apk.stat().st_size} bytes; speech, translation and OCR libraries with AndroidX camera utilities; 16KB aligned; permissions PASS')
+    print(f"{flavor} {build_type}: {apk.stat().st_size} bytes; {', '.join(sorted(abis))}; speech, translation and OCR libraries with AndroidX camera utilities; arm64 16KB aligned; permissions PASS")
 print('Standalone artifact verification PASS')

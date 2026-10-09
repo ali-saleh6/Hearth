@@ -33,8 +33,10 @@ class LocalTranslationSession private constructor(private val spec: TranslationM
     companion object {
         /** Blocking ownership-safe load; caller must keep this off Main and close even after cancellation. */
         fun open(file: File, spec: TranslationModelSpec): LocalTranslationSession {
+            // LinkageError, not UnsatisfiedLinkError: the library is absent on 32-bit ABIs, so
+            // repeat calls see NoClassDefFoundError from the failed object initializer instead.
             val protocol = try { LocalTranslationNative.promptProtocolVersion() }
-                catch (e: UnsatisfiedLinkError) { throw IllegalStateException("Local translation native runtime is outdated: ${e.message}", e) }
+                catch (e: LinkageError) { throw IllegalStateException("Local translation is unavailable on this device: ${e.message}", e) }
             check(protocol == 2) { "Local translation native prompt protocol mismatch: expected 2, got $protocol" }
             check(file.length() == spec.bytes) { "Local translation model is missing or has the wrong size" }
             ModelIntegrity.inspect(file, spec.sha256)
