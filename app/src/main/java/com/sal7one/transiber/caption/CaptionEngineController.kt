@@ -383,18 +383,19 @@ class CaptionEngineController(
             // Screen text needs no recognizer: skip the model load entirely so
             // this path costs nothing on a device that has no speech model.
             if (config.source == CaptionSource.SCREEN_TEXT) {
+                val screenConfig = withScreenTextTranslator(config)
                 // loadEngine is skipped, so resolve the route it would have:
                 // without it the text translator is never configured.
                 engineTranslatesToTarget = false
-                activeRoute = captionTranslationRoute(config, com.sal7one.transiber.byok.CloudConfigStore.sttMode(context))
+                activeRoute = screenTextTranslationRoute(screenConfig)
                 // Each line carries its own detected language; the chosen spoken
                 // language is only the fallback (see submitScreenText), so a video
                 // with Arabic subtitles is not treated as English.
                 resolvedSpokenLanguage = "auto"
-                val notice = withContext(Dispatchers.IO) { translationNoticeFor(config) }
+                val notice = withContext(Dispatchers.IO) { translationNoticeFor(screenConfig) }
                 if (generation != sessionGeneration) return@launch
                 _state.update { it.copy(status = Status.RUNNING, translationNotice = notice) }
-                configureLocalTranslation(config)
+                configureLocalTranslation(screenConfig)
                 onComplete(true)
                 return@launch
             }
@@ -1081,6 +1082,18 @@ class CaptionEngineController(
      * joins the same path as a recognized final, so translation, history and
      * spoken output behave identically.
      */
+    /**
+     * Screen text translates text, not audio, so a speech engine's own route
+     * says nothing about it. When no text translator is chosen, use a cloud one
+     * that is already set up rather than leave the captions untranslated.
+     */
+    private fun withScreenTextTranslator(config: CaptionOverlayConfig): CaptionOverlayConfig {
+        if (config.mode != CaptionMode.TRANSLATE || config.localTranslationModelId.isNotBlank() ||
+            config.textTranslationProviderId !in setOf("", "local")) return config
+        val ready = com.sal7one.transiber.translation.ConversationTranslationSettings.readyCloudProvider(context) ?: return config
+        return config.copy(textTranslationProviderId = ready.id, localTranslationEnabled = true)
+    }
+
     fun submitScreenText(text: String, sourceLanguage: String? = null) {
         val language = sourceLanguage ?: currentConfig.streamLanguage.takeUnless { it == "auto" }
         scope.launch { if (!stopping && !currentConfig.paused) promoteFinal(text, language) }

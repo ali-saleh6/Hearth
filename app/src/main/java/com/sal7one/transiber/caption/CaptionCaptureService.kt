@@ -66,8 +66,15 @@ class CaptionCaptureService : Service() {
     private var lastSpeakToggle = 0L
     private var screenReader: ScreenTextReader? = null
 
-    private fun screenOcrProfile(config: CaptionOverlayConfig): String =
-        com.sal7one.transiber.ocr.OcrCatalog.profileForLanguage(config.streamLanguage).id
+    private fun screenOcrProfile(config: CaptionOverlayConfig): String {
+        val wanted = com.sal7one.transiber.ocr.OcrCatalog.profileForLanguage(config.streamLanguage)
+        // The Arabic-script reader also reads English, so with it installed a
+        // video's Arabic or English subtitles both work without a setting change.
+        val arabic = com.sal7one.transiber.ocr.OcrCatalog.profile("arabic")
+        val bilingual = wanted.id == "latin" && config.streamLanguage in setOf("auto", "en", "ar") &&
+            com.sal7one.transiber.ocr.OcrModels(java.io.File(filesDir, "ocr-models")).ready(arabic)
+        return if (bilingual) arabic.id else wanted.id
+    }
 
     /** Remote/media-row controls: play-pause mirrors the notification action, stop kills captions and TTS. */
     private fun syncMediaSession(paused: Boolean) {

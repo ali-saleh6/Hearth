@@ -46,10 +46,15 @@ class CloudTtsSpeaker(
     private var configuration: () -> CloudVoiceConfig = { CloudVoiceConfig(CloudVoiceProvider.CUSTOM, baseUrl, model, voice) }
     private var credential: (CloudVoiceConfig) -> String = { apiKey }
     private var onActivity: (Boolean) -> Unit = {}
+    /** Set for captions over a video: the video is turned down while a line plays. */
+    private var ducker: com.sal7one.transiber.voice.MediaDucker? = null
+    private var restoreVolume: Job? = null
     internal constructor(configuration: () -> CloudVoiceConfig, credential: (CloudVoiceConfig) -> String,
-        onError: (String) -> Unit, cacheDirectory: File?, audioManager: AudioManager?, onActivity: (Boolean) -> Unit = {}) :
+        onError: (String) -> Unit, cacheDirectory: File?, audioManager: AudioManager?, onActivity: (Boolean) -> Unit = {},
+        ducker: com.sal7one.transiber.voice.MediaDucker? = null) :
         this("", onError = onError, cacheDirectory = cacheDirectory, audioManager = audioManager) {
         this.configuration = configuration; this.credential = credential; this.onActivity = onActivity
+        this.ducker = ducker?.also { it.recover() }
     }
     private data class Request(val text: String, val config: CloudVoiceConfig, val volume: Float)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -62,7 +67,8 @@ class CloudTtsSpeaker(
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         .setAudioAttributes(audioAttributes)
         .setOnAudioFocusChangeListener { change ->
-            if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) stop()
+            // A video player taking focus back is not a reason to cut a line off.
+            if (change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) stop()
         }.build()
 
     override fun speak(text: String, languageTag: String): Boolean =
@@ -76,8 +82,8 @@ class CloudTtsSpeaker(
         }
         val config = try { configuration().let { it.copy(voice = it.selectedVoice(gender.toVoiceGender())).validated() } }
         catch (e: Exception) { onError(e.message ?: e.toString()); return false }
-        val accepted = queue.offer(Request(text, config,
-            volumePercent.coerceIn(0, 100) / 100f))
+        val request = Request(text, config, volumePercent.coerceIn(0, 100) / 100f)
+        val accepted = if (ducker != null) queue.offerLatest(request) else queue.offer(request)
         if (!accepted) onError("Speech queue is full or closed. Skipped a new line to avoid falling behind.")
         return accepted
     }
@@ -101,8 +107,10 @@ class CloudTtsSpeaker(
                         focusGranted = true
                     }
                     val output = MediaPlayer().also { mp = it; player = it }
-                    // Read-aloud audio must not enter our USAGE_MEDIA playback capture.
-                    output.setAudioAttributes(audioAttributes)
+                    // Read-aloud audio must not enter our USAGE_MEDIA playback capture;
+                    // the ducked alarm stream is not captured either.
+                    restoreVolume?.cancel()
+                    output.setAudioAttributes(ducker?.takeIf { it.duck() }?.speechAttributes ?: audioAttributes)
                     output.setDataSource(tmp.absolutePath)
                     output.setVolume(request.volume, request.volume)
                     withTimeout(120_000) {
@@ -122,6 +130,8 @@ class CloudTtsSpeaker(
                     }
                 } finally {
                     player = null
+                    // Lines follow each other; wait before turning the video back up.
+                    ducker?.let { d -> restoreVolume = scope.launch { delay(RESTORE_DELAY_MS); d.restore() } }
                     try {
                         mp?.release()
                     } finally {
@@ -139,7 +149,11 @@ class CloudTtsSpeaker(
     override fun stop() {
         queue.stop()
         client?.cancel()
+        restoreVolume?.cancel()
+        ducker?.restore()
     }
+
+    private companion object { const val RESTORE_DELAY_MS = 700L }
 
     override fun release() {
         stop()

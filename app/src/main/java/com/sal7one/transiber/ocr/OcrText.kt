@@ -8,6 +8,9 @@ internal object OcrText {
 
     fun logical(text: String, arabic: Boolean): String {
         if (!arabic) return text
+        // The Arabic reader returns a line with no Arabic in reading order
+        // already; reversing it would turn "(Laughter)" into ")Laughter(".
+        if (text.codePoints().noneMatch { Character.UnicodeScript.of(it) == Character.UnicodeScript.ARABIC }) return text
         val groups = mutableListOf<String>()
         val latin = StringBuilder()
         fun flush() {

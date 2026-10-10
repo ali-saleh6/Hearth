@@ -40,6 +40,13 @@ internal class CaptionSpeechQueue<T>(
         !closed && pending.trySend(Entry(value, generation)).isSuccess
     }
 
+    /** Replace whatever is still waiting: a line read late over a video describes a scene already gone. */
+    fun offerLatest(value: T): Boolean = synchronized(lock) {
+        if (closed) return false
+        while (pending.tryReceive().isSuccess) Unit
+        pending.trySend(Entry(value, generation)).isSuccess
+    }
+
     private fun isCurrent(value: Long) = synchronized(lock) { !closed && value == generation }
 
     fun stop() = synchronized(lock) {

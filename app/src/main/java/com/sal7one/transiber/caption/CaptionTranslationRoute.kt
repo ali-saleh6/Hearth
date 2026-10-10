@@ -30,6 +30,23 @@ internal fun captionTranslationRoute(saved: CaptionOverlayConfig, cloudMode: Stt
     }
 }
 
+/**
+ * Screen text has no speech engine, so routes in which the engine translates
+ * (live target, Whisper's English task) cannot apply: the read text is either
+ * passed to a text translator or, for English into Arabic, to the bundled
+ * English → Arabic model.
+ */
+internal fun screenTextTranslationRoute(saved: CaptionOverlayConfig): CaptionTranslationRoute {
+    val config = saved.withCaptionMode(saved.mode)
+    return when {
+        config.mode == CaptionMode.CAPTIONS -> CaptionTranslationRoute.ORIGINAL
+        config.textTranslationProviderId !in setOf("", "local") || config.localTranslationModelId.isNotBlank() ->
+            CaptionTranslationRoute.TEXT_TRANSLATOR
+        config.target == TranslationTarget.ARABIC -> CaptionTranslationRoute.ENGLISH_TEXT
+        else -> CaptionTranslationRoute.UNSUPPORTED
+    }
+}
+
 /** Use the source validated while loading the actual model, not a model-less re-evaluation. */
 internal fun captionTranslationSource(resolved: String, detected: String?): String? =
     resolved.takeUnless { it in setOf("auto", "model", "und", "mul", "") } ?: detected

@@ -22,7 +22,7 @@ object CaptionSpeakerFactory {
     }
     fun create(context: Context, choice: CaptionSpeakerChoice, onError: (String)->Unit = {}): CaptionSpeaker = when(choice) {
         CaptionSpeakerChoice.CLOUD -> CloudTtsSpeaker({ CloudVoiceStore.config(context) }, { CloudVoiceStore.key(context, it) },onError,context.cacheDir,
-            context.applicationContext.getSystemService(android.media.AudioManager::class.java))
+            context.applicationContext.getSystemService(android.media.AudioManager::class.java), ducker = MediaDucker(context))
         else -> SharedCaptionVoice(context,when(choice){CaptionSpeakerChoice.SYSTEM->"system";CaptionSpeakerChoice.NATIVE->"supertonic";else->null},onError,choice==CaptionSpeakerChoice.CUSTOM)
     }
 }

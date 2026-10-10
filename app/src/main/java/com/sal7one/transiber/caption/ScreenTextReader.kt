@@ -139,6 +139,8 @@ internal class ScreenTextReader(
                 .filter { abs(it.x + it.width / 2 - width / 2) <= width * CENTRE_TOLERANCE }
                 // Stray glyphs from the picture ("2", "O") are not speech.
                 .filter { line -> line.text.count(Char::isLetter) >= MIN_LETTERS }
+                // Logos and thumbnails share the frame with Arabic lines too.
+                .filter { line -> !isArtwork(line.text) }
                 // Players draw subtitles as light text on a dark box; text in
                 // thumbnails and artwork under the player rarely looks like that.
                 .filter { line -> looksLikeSubtitle(pixels, width, height, line) }
@@ -202,6 +204,12 @@ internal class ScreenTextReader(
     }
 
     private fun isSoundLabel(text: String) = text.replace(BRACKETED, "").count(Char::isLetter) < MIN_SPEECH_LETTERS
+
+    /** Short all-capitals Latin text is a title or thumbnail ("THE LAST OF US"), not a subtitle. */
+    private fun isArtwork(text: String): Boolean {
+        val latin = text.filter { it.isLetter() && Character.UnicodeScript.of(it.code) == Character.UnicodeScript.LATIN }
+        return latin.length >= MIN_SPEECH_LETTERS && latin.none(Char::isLowerCase) && text.length < MAX_ARTWORK_CHARS
+    }
 
     private fun looksLikeSubtitle(pixels: IntArray, width: Int, height: Int, line: com.sal7one.common_jni.ocr.OcrLine): Boolean {
         val left = line.x.coerceIn(0, width - 1); val right = (line.x + line.width).coerceIn(left + 1, width)
@@ -279,6 +287,7 @@ internal class ScreenTextReader(
         val AD_LABEL = Regex("(?i)^sponsored\\b|^(skip|skip ads?|visit advertiser)$|^ad(\\s*[·•]|\\s+\\d+\\s+of\\s+\\d+)|^إعلان|^مُ?مو[َّ]*ل")
         /** "(Applause)", "[Music]" and OCR crumbs around them leave fewer letters than this. */
         const val MIN_SPEECH_LETTERS = 3
+        const val MAX_ARTWORK_CHARS = 24
         val BRACKETED = Regex("[(\\[][^)\\]]*[)\\]]")
         /** A fragment ending a sentence is spoken now; others wait briefly for the rest. */
         val SENTENCE_END = Regex("[.!?…。؟]['\"”’)]*$")

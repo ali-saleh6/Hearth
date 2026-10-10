@@ -61,7 +61,12 @@ internal object CloudVoiceStore {
 
     fun key(context: Context, config: CloudVoiceConfig): String {
         check(ByokPolicy.FEATURE_BYOK) { "Cloud voices are unavailable in the offline build" }
-        val key = ApiKeyStore.getTtsKey(context, config.credentialScope())
+        val key = ApiKeyStore.getTtsKey(context, config.credentialScope()).ifBlank {
+            // The OpenAI key saved for translation may voice lines too, but only
+            // against OpenAI itself: never a custom or third-party endpoint.
+            if (config.provider == CloudVoiceProvider.OPENAI && canonicalEndpoint(config.endpoint) == CloudVoiceProvider.OPENAI.endpoint)
+                com.sal7one.transiber.translation.ConversationTranslationSettings.openAiKey(context) else ""
+        }
         check(key.isNotBlank()) { "Save an API key for ${config.provider.label} in Voices → Cloud" }
         return key
     }

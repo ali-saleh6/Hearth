@@ -85,6 +85,12 @@ internal object ConversationTranslationSettings {
         if (selected(context) == provider.id) edit.putString("selected", LOCAL)
         check(edit.commit()) { "Could not remove translation key" }; changed()
     }
+    /** A cloud translator that is set up and checked, chat models first; null when none is. */
+    fun readyCloudProvider(context: Context): TextTranslationProvider? = if (!ByokPolicy.FEATURE_BYOK) null else
+        listOf(TextTranslationProvider.OPENAI, TextTranslationProvider.ANTHROPIC, TextTranslationProvider.GOOGLE,
+            TextTranslationProvider.DEEPL, TextTranslationProvider.AZURE, TextTranslationProvider.LIBRETRANSLATE)
+            .firstOrNull { capabilities(context, it) != null && (it == TextTranslationProvider.LIBRETRANSLATE || hasKey(context, it)) }
+
     fun capabilities(context: Context, provider: TextTranslationProvider): CloudTranslationLanguages? = prefs(context).getString("${provider.id}.languages", null)?.let { raw ->
         try {
             val json = JSONObject(raw)
