@@ -18,7 +18,10 @@ import java.util.Locale
 import java.util.UUID
 
 /** One bounded utterance queue for Android, native and self-hosted speech, with exact cancellation. */
-internal class VoicePlayer(context: Context,private val backendOverride: String?=null, private val changed: (Boolean,String?) -> Unit) : AutoCloseable {
+internal class VoicePlayer(context: Context,private val backendOverride: String?=null,
+                           /** Captions over a video: turn the video down while a line plays. */
+                           duckMedia: Boolean=false,
+                           private val changed: (Boolean,String?) -> Unit) : AutoCloseable {
     private val context=context.applicationContext
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
     private data class Request(val text: String,val language: String,val generation: Long,val requestedBackend: String?=null,
@@ -33,9 +36,14 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
     @Volatile private var track: AudioTrack?=null
     private var network: RemoteVoiceClient?=null
     private val audioManager=context.getSystemService(AudioManager::class.java)
+    private val ducker=if(duckMedia)MediaDucker(this.context).also {it.recover()} else null
+    private var restoreVolume: Job?=null
+    @Volatile private var playbackAttributes=audioAttributes
     private val focus=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         .setAudioAttributes(audioAttributes)
-        .setOnAudioFocusChangeListener { change -> if(change==AudioManager.AUDIOFOCUS_LOSS || change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)stop() }
+        // A video player taking focus back mid-line is not a reason to cut the
+        // line off; only an interruption such as a call or assistant is.
+        .setOnAudioFocusChangeListener { change -> if(change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)stop() }
         .build()
     init {
         scope.launch {
@@ -45,6 +53,8 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
                     var failure: String? = null
                     try {
                         check(audioManager.requestAudioFocus(focus)==AudioManager.AUDIOFOCUS_REQUEST_GRANTED){"Android could not grant audio focus for read aloud"}
+                        restoreVolume?.cancel()
+                        playbackAttributes=if(ducker?.duck()==true)ducker.speechAttributes else audioAttributes
                         changed(true,null)
                         val saved=VoiceSettings.choice(context)
                         val selectedBackend=request.requestedBackend ?: backendOverride
@@ -58,7 +68,13 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
                     }catch(e: CancellationException){throw e}
                     catch(e: Exception){failure=e.message ?: e.toString()}
                     catch(e: LinkageError){failure=e.message ?: e.toString()}
-                    finally {audioManager.abandonAudioFocusRequest(focus);if(request.generation==generation)changed(false,failure)}
+                    finally {
+                        audioManager.abandonAudioFocusRequest(focus)
+                        // Lines often follow each other; wait before turning the video back
+                        // up so it does not pump between them.
+                        if(ducker!=null)restoreVolume=scope.launch {delay(RESTORE_DELAY_MS);ducker.restore()}
+                        if(request.generation==generation)changed(false,failure)
+                    }
                 }
                 operation?.join();operation=null
             }
@@ -85,13 +101,16 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
         if(text.length>5000){changed(false,"Read aloud accepts at most 5000 characters");return}
         val owner=audibleOwner
         if(owner!==this){owner?.stop();audibleOwner=this}
+        // Over a playing video, a line read late describes a scene already gone:
+        // keep only the newest waiting line so speech stays with the picture.
+        if(ducker!=null)while(queue.tryReceive().isSuccess)Unit
         if(!queue.trySend(Request(text,Locale.forLanguageTag(language).toLanguageTag(),generation,requestedBackend,gender,volume)).isSuccess)
             changed(true,"Speech queue is full. Skipped a new line to avoid falling behind.")
     }
     private fun initSystem() {
         if(system!=null)return
         system=TextToSpeech(context){code ->if(code==TextToSpeech.SUCCESS)systemReady.complete(Unit) else systemReady.completeExceptionally(IllegalStateException("Android TTS initialization returned $code"))}.apply {
-            setAudioAttributes(audioAttributes)
+            setAudioAttributes(playbackAttributes)
             setOnUtteranceProgressListener(object:UtteranceProgressListener(){
                 override fun onStart(id: String?)=Unit
                 override fun onDone(id: String?)=finish(id,null)
@@ -104,6 +123,7 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
     private fun finish(id: String?,error: String?) {Handler(Looper.getMainLooper()).post {systemPending?.takeIf {it.first==id}?.second?.let {if(error==null)it.complete(Unit) else it.completeExceptionally(IllegalStateException(error))}}}
     private suspend fun systemSpeak(text: String,language: String,rate: Float,gender: VoiceGender=VoiceGender.ANY,volume: Float=1f) {
         initSystem();withTimeout(15000){systemReady.await()};val tts=checkNotNull(system)
+        tts.setAudioAttributes(playbackAttributes)
         val baseLanguage=Locale.forLanguageTag(language).language
         // Gender is best-effort here: Android voice names rarely carry it.
         val candidates=tts.voices.orEmpty().filterNot {it.isNetworkConnectionRequired}
@@ -158,7 +178,7 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
         require(samples.isNotEmpty() && samples.all(Float::isFinite)){"Voice returned empty or invalid audio"}
         val minimum=AudioTrack.getMinBufferSize(rate,AudioFormat.CHANNEL_OUT_MONO,AudioFormat.ENCODING_PCM_FLOAT)
         check(minimum>0){"Android cannot play $rate Hz voice audio: $minimum"}
-        val player=AudioTrack.Builder().setAudioAttributes(audioAttributes).setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).setEncoding(AudioFormat.ENCODING_PCM_FLOAT).build()).setTransferMode(AudioTrack.MODE_STREAM).setBufferSizeInBytes(maxOf(minimum,rate/10*4)).build()
+        val player=AudioTrack.Builder().setAudioAttributes(playbackAttributes).setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).setEncoding(AudioFormat.ENCODING_PCM_FLOAT).build()).setTransferMode(AudioTrack.MODE_STREAM).setBufferSizeInBytes(maxOf(minimum,rate/10*4)).build()
         try {
             check(player.state==AudioTrack.STATE_INITIALIZED){"Voice audio output failed to initialize"}
             track=player;player.setVolume(volume.coerceIn(0f,1f));if(speed!=1f)player.playbackParams=PlaybackParams().allowDefaults().setSpeed(speed)
@@ -172,11 +192,13 @@ internal class VoicePlayer(context: Context,private val backendOverride: String?
         generation++;while(queue.tryReceive().isSuccess)Unit
         model?.cancel();network?.close();operation?.cancel();systemPending?.second?.cancel();system?.stop()
         runCatching {track?.pause();track?.flush()};changed(false,null)
+        restoreVolume?.cancel();ducker?.restore()
     }
     override fun close(){scope.launch {stopNow();queue.close();scope.cancel();system?.shutdown();system=null;if(audibleOwner===this@VoicePlayer)audibleOwner=null}}
     companion object {
         private val nativeGate=Mutex()
         private var audibleOwner: VoicePlayer?=null
+        private const val RESTORE_DELAY_MS=700L
         private val audioAttributes=AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
     }
 }

@@ -178,7 +178,7 @@ class CaptionCaptureService : Service() {
                                 context = this@CaptionCaptureService,
                                 projection = token,
                                 profileId = screenOcrProfile(config),
-                                onText = { text -> engine.submitScreenText(text) },
+                                onText = { text, language -> engine.submitScreenText(text, language) },
                                 onError = { message -> fail("On-screen captions: $message") },
                             ).also { it.start() }
                             engine.start(config) { if (active) updateNotification() }

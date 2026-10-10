@@ -65,6 +65,8 @@ internal class TranslationHttpTransport(
     }
 }
 
+private const val MAX_RETRY_WAIT_MS = 8_000L
+
 internal class CloudTextTranslator(
     private val connection: CloudTranslationConnection,
     private val languages: CloudTranslationLanguages,
@@ -77,13 +79,47 @@ internal class CloudTextTranslator(
     }.toSet()
     override suspend fun translate(text: String, direction: TranslationDirection): String {
         val request = CloudTranslationProtocol.translateRequest(connection, text, direction.source, direction.target, languages)
-        val raw = transport.execute(request, connection.key)
+        val raw = try { transport.execute(request, connection.key) }
+        catch (e: IllegalStateException) {
+            val message = e.message.orEmpty()
+            // Low account tiers allow a few requests a minute while captions
+            // change every few seconds: wait the hinted time once, not drop the line.
+            val wait = retryDelayMs(message) ?: throw IllegalStateException(friendly(message), e)
+            kotlinx.coroutines.delay(wait)
+            try { transport.execute(request, connection.key) }
+            catch (again: IllegalStateException) { throw IllegalStateException(friendly(again.message.orEmpty()), again) }
+        }
         val parsed = CloudTranslationProtocol.parseTranslation(connection.provider, raw)
         val translated = if (connection.provider == TextTranslationProvider.GOOGLE)
             androidx.core.text.HtmlCompat.fromHtml(parsed, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
         else parsed
         return translated.also { check(it.isNotBlank()) { "${connection.provider.label} returned empty translation" } }
     }
+    /** Only a rate limit is worth waiting for; an empty balance or a bad key is not. */
+    private fun retryDelayMs(message: String): Long? {
+        if (!message.startsWith("HTTP 429") || outOfCredit(message)) return null
+        val seconds = Regex("try again in ([0-9.]+)\\s*(ms|s)").find(message)?.let { match ->
+            match.groupValues[1].toDoubleOrNull()?.let { if (match.groupValues[2] == "ms") it / 1000 else it }
+        } ?: 2.0
+        return (seconds * 1000).toLong().coerceIn(250, MAX_RETRY_WAIT_MS)
+    }
+
+    /** A rate-limit body also links to billing, so match the error codes, not prose. */
+    private fun outOfCredit(message: String) =
+        "insufficient_quota" in message || "credit_balance" in message || "credit balance is too low" in message
+
+    /** Provider bodies are long JSON; the overlay has room for one short line. */
+    private fun friendly(message: String): String {
+        val name = connection.provider.label
+        return when {
+            message.startsWith("HTTP 401") || message.startsWith("HTTP 403") -> "$name rejected the API key. Check it in Translation settings."
+            outOfCredit(message) -> "$name: no credit left on this API account."
+            message.startsWith("HTTP 429") -> "$name: rate limit reached; some lines stay untranslated."
+            message.startsWith("HTTP 5") || message.startsWith("HTTP 529") -> "$name is having trouble right now."
+            else -> message.lineSequence().first().take(160)
+        }
+    }
+
     override fun cancel() = transport.close()
     override fun close() = transport.close()
 }

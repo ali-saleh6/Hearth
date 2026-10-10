@@ -381,6 +381,14 @@ class CaptionEngineController(
             // Screen text needs no recognizer: skip the model load entirely so
             // this path costs nothing on a device that has no speech model.
             if (config.source == CaptionSource.SCREEN_TEXT) {
+                // loadEngine is skipped, so resolve the route it would have:
+                // without it the text translator is never configured.
+                engineTranslatesToTarget = false
+                activeRoute = captionTranslationRoute(config, com.sal7one.transiber.byok.CloudConfigStore.sttMode(context))
+                // Each line carries its own detected language; the chosen spoken
+                // language is only the fallback (see submitScreenText), so a video
+                // with Arabic subtitles is not treated as English.
+                resolvedSpokenLanguage = "auto"
                 val notice = withContext(Dispatchers.IO) { translationNoticeFor(config) }
                 if (generation != sessionGeneration) return@launch
                 _state.update { it.copy(status = Status.RUNNING, translationNotice = notice) }
@@ -511,6 +519,7 @@ class CaptionEngineController(
                 scope.launch {
                     if (generation == translationGeneration && activeRoute == CaptionTranslationRoute.TEXT_TRANSLATOR) {
                         historyRecorder?.translation(id, text, config.target.languageTag)
+                        if (com.sal7one.transiber.BuildConfig.DEBUG) Log.d(TAG, "Translated line #$id in $latency ms: $text")
                     }
                     if (generation == translationGeneration && activeRoute == CaptionTranslationRoute.TEXT_TRANSLATOR && _state.value.history.any { it.id == id }) {
                         lastActivityMs = System.currentTimeMillis()
@@ -1060,7 +1069,8 @@ class CaptionEngineController(
      * spoken output behave identically.
      */
     fun submitScreenText(text: String, sourceLanguage: String? = null) {
-        scope.launch { if (!stopping && !currentConfig.paused) promoteFinal(text, sourceLanguage) }
+        val language = sourceLanguage ?: currentConfig.streamLanguage.takeUnless { it == "auto" }
+        scope.launch { if (!stopping && !currentConfig.paused) promoteFinal(text, language) }
     }
 
     private fun promoteFinal(finalText: String, sourceLanguage: String? = null) {
@@ -1078,8 +1088,11 @@ class CaptionEngineController(
             )
         }
         recordHistoryText(lineId, text, promotedAtMs, sourceLanguage)
-        enqueueLocalTranslation(lineId, text, sourceLanguage)
-        val marianPending = needsSecondStage(config) || activeRoute == CaptionTranslationRoute.TEXT_TRANSLATOR
+        // A line already in the target language is spoken as is: Arabic
+        // captions must still be read aloud, once, without a cloud request.
+        val alreadyTarget = sourceLanguage?.substringBefore('-') == config.target.languageTag.substringBefore('-')
+        if (!alreadyTarget) enqueueLocalTranslation(lineId, text, sourceLanguage)
+        val marianPending = (needsSecondStage(config) || activeRoute == CaptionTranslationRoute.TEXT_TRANSLATOR) && !alreadyTarget
         if (!marianPending) speakLine(config, text, sourceLanguage)
         if (needsSecondStage(config)) {
             val target = config.target

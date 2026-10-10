@@ -418,6 +418,8 @@
     <string name="ui_microsoft_azure_translator_the_official_microsoft_translation_api_b8ead" formatted="false">"Microsoft Azure Translator، واجهة الترجمة الرسمية من Microsoft. استخدم مفتاح المورد والمنطقة عند طلبها."</string>
     <string name="ui_deepl_api_free_or_pro_key_use_api_free_deepl_com_v2_for_free_or_a_62829" formatted="false">"مفتاح DeepL API المجاني أو الاحترافي. استخدم api-free.deepl.com/v2 للمجاني أو api.deepl.com/v2 للاحترافي."</string>
     <string name="ui_open_source_libretranslate_choose_your_own_https_server_a_key_is_1b625" formatted="false">"LibreTranslate مفتوح المصدر. اختر خادم HTTPS الخاص بك؛ المفتاح اختياري فقط إذا سمح الخادم. يتطلب libretranslate.com مفتاحًا."</string>
+    <string name="ui_openai_translation_description" formatted="false">"ترجمة OpenAI بمفتاح OpenAI API الخاص بك. من أي لغة إلى أي لغة؛ يختار Hearth نموذجًا سريعًا متاحًا لمفتاحك. يُرسل كل سطر ترجمة إلى OpenAI."</string>
+    <string name="ui_anthropic_translation_description" formatted="false">"ترجمة Claude بمفتاح Anthropic API الخاص بك. من أي لغة إلى أي لغة؛ يختار Hearth نموذج Claude سريعًا متاحًا لمفتاحك. يُرسل كل سطر ترجمة إلى Anthropic."</string>
     <string name="ui_finalized_text_is_sent_to_this_provider_audio_is_handled_separate_d490d" formatted="false">"يُرسل النص النهائي إلى هذا المزوّد. يعالج نموذج الكلام المحدد الصوت منفصلًا. قد تنطبق رسوم أو حدود استخدام."</string>
     <string name="ui_api_base_url_https_43d49" formatted="false">"عنوان API الأساسي · HTTPS"</string>
     <string name="ui_resource_region_blank_for_global_64f7b" formatted="false">"منطقة المورد · اتركها فارغة للعالمي"</string>

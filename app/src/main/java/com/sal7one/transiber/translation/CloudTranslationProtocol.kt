@@ -19,7 +19,11 @@ enum class TextTranslationProvider(val id: String, val label: String, val defaul
     DEEPL("deepl", "DeepL", "https://api-free.deepl.com/v2",
         "https://developers.deepl.com/api-reference/translate/request-translation"),
     LIBRETRANSLATE("libretranslate", "LibreTranslate", "https://libretranslate.com",
-        "https://docs.libretranslate.com/guides/api_usage/");
+        "https://docs.libretranslate.com/guides/api_usage/"),
+    OPENAI("openai", "OpenAI", "https://api.openai.com/v1",
+        "https://platform.openai.com/docs/api-reference/chat/create"),
+    ANTHROPIC("anthropic", "Claude (Anthropic)", "https://api.anthropic.com/v1",
+        "https://docs.anthropic.com/en/api/messages");
     companion object { fun fromId(id: String) = entries.firstOrNull { it.id == id } ?: error("Unknown text translation provider: $id") }
 }
 
@@ -35,6 +39,8 @@ data class CloudTranslationLanguages(
     val targetCodes: Map<String, String>,
     /** Empty means the provider advertises every source/target combination. Libre always supplies edges. */
     val targetsBySource: Map<String, Set<String>> = emptyMap(),
+    /** Chat model chosen from the account's model list; blank for dedicated translation APIs. */
+    val model: String = "",
 ) {
     val sourceLanguages: Set<String> get() = sourceCodes.keys
     val targetLanguages: Set<String> get() = targetCodes.keys
@@ -104,6 +110,16 @@ object CloudTranslationProtocol {
                 body = JSONObject().put("q", text).put("source", from).put("target", to).put("format", "text")
                     .apply { if (connection.key.isNotBlank()) put("api_key", connection.key.trim()) }.toString()
             }
+            TextTranslationProvider.OPENAI -> {
+                request.url(url.newBuilder().addPathSegment("chat").addPathSegment("completions").build())
+                body = openAiTranslation(languages?.model?.ifBlank { null } ?: OPENAI_MODELS.first(), text, from, to).toString()
+            }
+            TextTranslationProvider.ANTHROPIC -> {
+                request.url(child(url, "messages"))
+                body = JSONObject().put("model", languages?.model?.ifBlank { null } ?: ANTHROPIC_MODELS.first())
+                    .put("max_tokens", 1024).put("temperature", 0).put("system", subtitleInstructions(from, to))
+                    .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", text))).toString()
+            }
         }
         return request.post(body.toRequestBody(jsonType)).build()
     }
@@ -118,6 +134,10 @@ object CloudTranslationProtocol {
                 authorized(connection, true).url(url.newBuilder().addQueryParameter("type", type).build()).get().build()
             }
             TextTranslationProvider.LIBRETRANSLATE -> listOf(Request.Builder().url(url).get().build())
+            // No language list exists; listing models checks the key and finds a usable model.
+            TextTranslationProvider.OPENAI -> listOf(authorized(connection, true).url(child(endpoint(connection), "models")).get().build())
+            TextTranslationProvider.ANTHROPIC -> listOf(authorized(connection, true)
+                .url(child(endpoint(connection), "models").newBuilder().addQueryParameter("limit", "1000").build()).get().build())
         }
     }
 
@@ -128,6 +148,12 @@ object CloudTranslationProtocol {
             TextTranslationProvider.AZURE -> single(single(JSONArray(body)).getJSONArray("translations")).strictString("text")
             TextTranslationProvider.DEEPL -> single(JSONObject(body).getJSONArray("translations")).strictString("text")
             TextTranslationProvider.LIBRETRANSLATE -> JSONObject(body).strictString("translatedText")
+            TextTranslationProvider.OPENAI -> single(JSONObject(body).getJSONArray("choices"))
+                .getJSONObject("message").strictString("content").trim().removeSurrounding("\"")
+            TextTranslationProvider.ANTHROPIC -> JSONObject(body).getJSONArray("content").let { blocks ->
+                (0 until blocks.length()).map(blocks::getJSONObject).filter { it.optString("type") == "text" }
+                    .joinToString("") { it.strictString("text") }.trim().removeSurrounding("\"")
+            }
         }
         require(text.isNotBlank()) { "Empty translated text" }
         text
@@ -179,6 +205,17 @@ object CloudTranslationProtocol {
                 }
                 CloudTranslationLanguages(sourceMap, targetMap, edges)
             }
+            TextTranslationProvider.OPENAI, TextTranslationProvider.ANTHROPIC -> {
+                val data = JSONObject(bodies.single()).getJSONArray("data")
+                val available = (0 until data.length()).map { data.getJSONObject(it).strictString("id") }
+                val preferred = if (provider == TextTranslationProvider.OPENAI) OPENAI_MODELS else ANTHROPIC_MODELS
+                // Claude lists newest first, so a Haiku newer than this list still wins over Sonnet.
+                val model = preferred.firstOrNull { it in available }
+                    ?: available.firstOrNull { provider == TextTranslationProvider.ANTHROPIC && "haiku" in it }
+                    ?: error("This ${provider.label} key has none of: ${preferred.joinToString()}")
+                val codes = OPENAI_LANGUAGES.associateWith { it }
+                CloudTranslationLanguages(codes, codes, model = model)
+            }
         }
     }
 
@@ -207,7 +244,7 @@ object CloudTranslationProtocol {
             TextTranslationProvider.DEEPL -> if (target) when (code) {
                 "en" -> "EN-US"; "pt" -> "PT-PT"; "zh" -> "ZH-HANS"; else -> code.uppercase(Locale.ROOT)
             } else code.uppercase(Locale.ROOT)
-            TextTranslationProvider.LIBRETRANSLATE -> code
+            TextTranslationProvider.LIBRETRANSLATE, TextTranslationProvider.OPENAI, TextTranslationProvider.ANTHROPIC -> code
         }
     }
     private fun endpoint(connection: CloudTranslationConnection): HttpUrl {
@@ -237,9 +274,43 @@ object CloudTranslationProtocol {
             }
             TextTranslationProvider.DEEPL -> request.header("Authorization", "DeepL-Auth-Key $key")
             TextTranslationProvider.LIBRETRANSLATE -> Unit
+            TextTranslationProvider.OPENAI -> request.header("Authorization", "Bearer $key")
+            TextTranslationProvider.ANTHROPIC -> request.header("x-api-key", key).header("anthropic-version", "2023-06-01")
         }
         return request
     }
+    /**
+     * Fast general models first: a caption has to be spoken before the next
+     * one appears. Reasoning models are a fallback for keys without them.
+     */
+    val OPENAI_MODELS = listOf("gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1-nano", "gpt-5.4-mini", "gpt-5-mini", "gpt-5.4-nano", "gpt-5-nano")
+
+    /** Haiku first: fast enough to speak a line before the next caption. */
+    val ANTHROPIC_MODELS = listOf("claude-haiku-5-5", "claude-haiku-4-5", "claude-sonnet-5-5", "claude-sonnet-4-5")
+
+    /** A chat model translates between any pair; this bounds the pickers to common languages. */
+    val OPENAI_LANGUAGES = listOf("af", "am", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es",
+        "et", "fa", "fi", "fil", "fr", "ga", "gl", "gu", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "ka", "kk", "km",
+        "kn", "ko", "lo", "lt", "lv", "mk", "ml", "mn", "mr", "ms", "my", "nb", "ne", "nl", "pa", "pl", "ps", "pt", "ro", "ru",
+        "si", "sk", "sl", "so", "sq", "sr", "sv", "sw", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "zh", "zu")
+
+    /** The source is a guess from short subtitle text, so it is a hint, not a constraint. */
+    private fun subtitleInstructions(from: String, to: String): String {
+        fun name(code: String) = Locale.forLanguageTag(code).getDisplayLanguage(Locale.ENGLISH).ifBlank { code }
+        return "Translate TV subtitles into ${name(to)}. The text is probably ${name(from)}, " +
+            "but translate it whatever language it is. It was read off the screen and may contain small " +
+            "recognition errors; correct them silently. Reply with the translation only, no quotes or notes, " +
+            "phrased naturally for being read aloud."
+    }
+
+    private fun openAiTranslation(model: String, text: String, from: String, to: String): JSONObject {
+        return JSONObject().put("model", model)
+            .put("messages", JSONArray()
+                .put(JSONObject().put("role", "system").put("content", subtitleInstructions(from, to)))
+                .put(JSONObject().put("role", "user").put("content", text)))
+            .apply { if (model.startsWith("gpt-5")) put("reasoning_effort", "low") else put("temperature", 0) }
+    }
+
     private fun single(array: JSONArray): JSONObject {
         require(array.length() == 1) { "Expected one translation result" }
         return array.getJSONObject(0)

@@ -84,7 +84,7 @@ internal object ConversationTranslationSettings {
             val pairs = json.getJSONObject("pairs")
             CloudTranslationLanguages(codes("sources"), codes("targets"), pairs.keys().asSequence().associateWith { code ->
                 val values = pairs.getJSONArray(code); (0 until values.length()).map { values.getString(it) }.toSet()
-            })
+            }, json.optString("model"))
         } catch (_: Exception) { null } // Corrupt cache requires explicit refresh; never invent capabilities.
     }
     @Synchronized
@@ -94,6 +94,7 @@ internal object ConversationTranslationSettings {
         }
         val pairs = JSONObject(); languages.targetsBySource.forEach { (from, to) -> pairs.put(from, JSONArray(to.toList())) }
         val json = JSONObject().put("sources", JSONObject(languages.sourceCodes)).put("targets", JSONObject(languages.targetCodes)).put("pairs", pairs)
+            .put("model", languages.model)
         check(prefs(context).edit().putString("${provider.id}.languages", json.toString()).commit()) { "Could not save supported translation languages" }
         changed()
     }

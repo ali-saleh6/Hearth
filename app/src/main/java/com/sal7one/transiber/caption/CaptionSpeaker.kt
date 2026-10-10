@@ -27,7 +27,7 @@ object CaptionSpeakerFactory {
     }
 }
 private class SharedCaptionVoice(context: Context,backend: String?,error: (String)->Unit,private val custom: Boolean=false):CaptionSpeaker {
-    private val player=VoicePlayer(context,backend){_,message->if(message!=null)error(message)}
+    private val player=VoicePlayer(context,backend,duckMedia=true){_,message->if(message!=null)error(message)}
     override fun speak(text: String,languageTag: String):Boolean {player.enqueue(text,languageTag,if(custom)VoicePlaybackMode.CUSTOM else VoicePlaybackMode.DEFAULT);return text.isNotBlank()}
     override fun speak(text: String,languageTag: String,gender: SpeakerGender,volumePercent: Int):Boolean {
         player.enqueue(text,languageTag,if(custom)VoicePlaybackMode.CUSTOM else VoicePlaybackMode.DEFAULT,

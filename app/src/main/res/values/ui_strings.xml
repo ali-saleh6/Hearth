@@ -418,6 +418,8 @@
     <string name="ui_microsoft_azure_translator_the_official_microsoft_translation_api_b8ead" formatted="false">"Microsoft Azure Translator (the official Microsoft translation API). Use its resource key and region when required."</string>
     <string name="ui_deepl_api_free_or_pro_key_use_api_free_deepl_com_v2_for_free_or_a_62829" formatted="false">"DeepL API Free or Pro key. Use api-free.deepl.com/v2 for Free or api.deepl.com/v2 for Pro."</string>
     <string name="ui_open_source_libretranslate_choose_your_own_https_server_a_key_is_1b625" formatted="false">"Open-source LibreTranslate. Choose your own HTTPS server; a key is optional only if that server allows it. libretranslate.com requires a key."</string>
+    <string name="ui_openai_translation_description" formatted="false">"OpenAI chat translation with your OpenAI API key. Any language to any language; Hearth picks a fast model your key can use. Each caption line is sent to OpenAI."</string>
+    <string name="ui_anthropic_translation_description" formatted="false">"Claude translation with your Anthropic API key. Any language to any language; Hearth picks a fast Claude model your key can use. Each caption line is sent to Anthropic."</string>
     <string name="ui_finalized_text_is_sent_to_this_provider_audio_is_handled_separate_d490d" formatted="false">"Finalized text is sent to this provider. Audio is handled separately by your selected speech model. Provider charges or limits may apply."</string>
     <string name="ui_api_base_url_https_43d49" formatted="false">"API base URL · HTTPS"</string>
     <string name="ui_resource_region_blank_for_global_64f7b" formatted="false">"Resource region · blank for global"</string>

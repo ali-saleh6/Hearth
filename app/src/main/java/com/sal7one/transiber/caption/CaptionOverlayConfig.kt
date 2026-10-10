@@ -158,9 +158,11 @@ data class CaptionOverlayConfig(
     // Empty keeps the existing speech-provider/legacy route; otherwise an explicit text translator.
     val textTranslationProviderId: String = "",
     // Translation
-    val target: TranslationTarget = TranslationTarget.ENGLISH,
+    // Hearth is set up to speak Arabic; other targets stay one pick away.
+    val target: TranslationTarget = TranslationTarget.ARABIC,
     // Spoken-language preference; runtime capabilities decide whether it can be sent as a hint.
-    val streamLanguage: String = "auto",
+    // Most videos Hearth is pointed at are English; "auto" stays a pick away.
+    val streamLanguage: String = "en",
     val display: CaptionDisplay = CaptionDisplay.BOTH,
     // Layout
     val anchor: CaptionAnchor = CaptionAnchor.BOTTOM,
@@ -329,8 +331,8 @@ object CaptionConfigStore {
             localTranslationEnabled = prefs[LocalTranslationEnabled] ?: false,
             localTranslationModelId = prefs[LocalTranslationModelId] ?: "",
             target = prefs[Target]?.let(TranslationTarget::fromStored)
-                ?: TranslationTarget.ENGLISH,
-            streamLanguage = prefs[StreamLanguage] ?: "auto",
+                ?: TranslationTarget.ARABIC,
+            streamLanguage = prefs[StreamLanguage] ?: "en",
             display = prefs[Display]?.let { enumOrDefault(it, CaptionDisplay.BOTH) } ?: CaptionDisplay.BOTH,
             anchor = (prefs[if (portrait) AnchorPortrait else AnchorLandscape] ?: (if (portrait) prefs[Anchor] else null))
                 ?.let { enumOrDefault(it, CaptionAnchor.BOTTOM) } ?: CaptionAnchor.BOTTOM,

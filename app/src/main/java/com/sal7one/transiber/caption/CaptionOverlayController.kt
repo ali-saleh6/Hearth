@@ -189,15 +189,21 @@ class CaptionOverlayController(
         val density = context.resources.displayMetrics.density
         val maxHeight = overlayHeightPx(vp.height, density, c)
         heightDp.value = maxHeight / density
+        // On-screen captions are read off the bottom of the screen, so the
+        // bubble must not cover them there, and must never be read back as a
+        // caption itself: a secure window is blank in the captured frames.
+        val readsScreen = c.source == CaptionSource.SCREEN_TEXT
+        val anchor = if (readsScreen && c.anchor == CaptionAnchor.BOTTOM) CaptionAnchor.TOP else c.anchor
         val p = placeOverlay(vp, vp.width * c.widthPercent / 100,
             maxHeight,
-            c.anchor, c.xOffsetPx, c.yOffsetPx)
+            anchor, c.xOffsetPx, c.yOffsetPx)
         if (normalize) {
-            val origin = placeOverlay(vp, p.width, p.height, c.anchor, 0, 0)
-            _config.value = c.copy(xOffsetPx = p.x - origin.x,
-                yOffsetPx = if (c.anchor == CaptionAnchor.BOTTOM) origin.y - p.y else p.y - origin.y)
+            val origin = placeOverlay(vp, p.width, p.height, anchor, 0, 0)
+            _config.value = c.copy(anchor = anchor, xOffsetPx = p.x - origin.x,
+                yOffsetPx = if (anchor == CaptionAnchor.BOTTOM) origin.y - p.y else p.y - origin.y)
         }
-        val flags = TvControls.overlayWindowFlags(c.tapThrough, c.showSettings, TvControls.isTvDevice(context))
+        val flags = TvControls.overlayWindowFlags(c.tapThrough, c.showSettings, TvControls.isTvDevice(context)) or
+            (if (readsScreen) WindowManager.LayoutParams.FLAG_SECURE else 0)
         return WindowManager.LayoutParams(p.width, p.height,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, flags, PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.LEFT
@@ -252,7 +258,9 @@ class CaptionOverlayController(
         val params = WindowManager.LayoutParams(placement.width, placement.height,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply {
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                (if (_config.value.source == CaptionSource.SCREEN_TEXT) WindowManager.LayoutParams.FLAG_SECURE else 0),
+            PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.LEFT
             x = placement.x; y = placement.y
             title = "Caption controls · tap to unlock"

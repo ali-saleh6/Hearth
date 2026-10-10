@@ -65,6 +65,8 @@ internal fun SettingsTranslateCloudUi(initialProvider: String? = null, allowSele
                 TextTranslationProvider.AZURE -> uiText(UiR.string.ui_microsoft_azure_translator_the_official_microsoft_translation_api_b8ead)
                 TextTranslationProvider.DEEPL -> uiText(UiR.string.ui_deepl_api_free_or_pro_key_use_api_free_deepl_com_v2_for_free_or_a_62829)
                 TextTranslationProvider.LIBRETRANSLATE -> uiText(UiR.string.ui_open_source_libretranslate_choose_your_own_https_server_a_key_is_1b625)
+                TextTranslationProvider.OPENAI -> uiText(UiR.string.ui_openai_translation_description)
+                TextTranslationProvider.ANTHROPIC -> uiText(UiR.string.ui_anthropic_translation_description)
             }, style = MaterialTheme.typography.bodyMedium)
             Text(uiText(UiR.string.ui_finalized_text_is_sent_to_this_provider_audio_is_handled_separate_d490d), style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(endpoint, { endpoint = it }, enabled = !working, label = { Text(uiText(UiR.string.ui_api_base_url_https_43d49)) }, modifier = Modifier.fillMaxWidth().padding(top = 2.dp), singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = androidx.compose.ui.text.style.TextDirection.Ltr))
