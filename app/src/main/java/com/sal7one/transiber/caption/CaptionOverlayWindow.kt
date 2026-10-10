@@ -370,16 +370,25 @@ private fun StatusBadge(state: State, cfg: CaptionOverlayConfig, palette: Overla
         state.status == Status.RUNNING -> uiText(UiR.string.ui_captions_1_s_31caa, state.engineLabel)
         else -> state.status.name.lowercase(java.util.Locale.ROOT)
     }
-    Text(
-        text = label,
+    // The speaker state rides on the status chip, not just the control strip:
+    // the strip is hidden in tap-through and unreachable with a remote, and
+    // whether Arabic speech is on is the one thing worth seeing at a glance.
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(palette.chip)
             .padding(horizontal = 8.dp, vertical = 2.dp),
-        color = palette.accent,
-        fontSize = 10.sp,
-        maxLines = 1,
-    )
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            if (cfg.speakCaptions) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+            if (cfg.speakCaptions) uiText(UiR.string.ui_stop_speaking_aloud) else uiText(UiR.string.ui_start_speaking_aloud),
+            tint = if (cfg.speakCaptions) palette.accent else palette.onSurfaceFaded,
+            modifier = Modifier.size(12.dp),
+        )
+        Text(text = label, color = palette.accent, fontSize = 10.sp, maxLines = 1)
+    }
 }
 
 @Composable

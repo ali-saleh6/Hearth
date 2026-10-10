@@ -378,6 +378,16 @@ class CaptionEngineController(
             cloudCaptionIds.clear()
             _state.value = State(status = Status.LOADING_MODEL, historyError = historyRecorder?.error)
             if (config.paused) return@launch
+            // Screen text needs no recognizer: skip the model load entirely so
+            // this path costs nothing on a device that has no speech model.
+            if (config.source == CaptionSource.SCREEN_TEXT) {
+                val notice = withContext(Dispatchers.IO) { translationNoticeFor(config) }
+                if (generation != sessionGeneration) return@launch
+                _state.update { it.copy(status = Status.RUNNING, translationNotice = notice) }
+                configureLocalTranslation(config)
+                onComplete(true)
+                return@launch
+            }
             loadMutex.withLock {
                 // Don't load another large model while the previous native inference is releasing.
                 engineCleanup?.join()
@@ -1042,6 +1052,15 @@ class CaptionEngineController(
             if (!update.translated) enqueueLocalTranslation(lineId, update.text, update.language)
             if (update.translated || activeRoute == CaptionTranslationRoute.ORIGINAL) speakLine(currentConfig, update.text, update.language)
         }
+    }
+
+    /**
+     * Caption text read off the screen rather than recognized from audio. It
+     * joins the same path as a recognized final, so translation, history and
+     * spoken output behave identically.
+     */
+    fun submitScreenText(text: String, sourceLanguage: String? = null) {
+        scope.launch { if (!stopping && !currentConfig.paused) promoteFinal(text, sourceLanguage) }
     }
 
     private fun promoteFinal(finalText: String, sourceLanguage: String? = null) {

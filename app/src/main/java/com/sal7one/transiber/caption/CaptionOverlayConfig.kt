@@ -39,6 +39,12 @@ enum class CaptionSource(val label: String, val explanation: String) {
         "Listens through the microphone near the speaker. Works with any app " +
             "including ones that block device-audio capture, at reduced accuracy.",
     ),
+    SCREEN_TEXT(
+        "On-screen captions",
+        "Reads the subtitles already drawn at the bottom of the screen instead " +
+            "of listening. Needs captions switched on in the player and an OCR " +
+            "model installed; no speech model and no audio capture.",
+    ),
 }
 
 enum class CaptionEngineChoice(val label: String, val explanation: String) {

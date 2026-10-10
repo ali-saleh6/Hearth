@@ -87,6 +87,10 @@
     <string name="ui_drag_to_move_captions_51a37" formatted="false">"拖动以移动字幕"</string>
     <string name="ui_resume_captions_b31f8" formatted="false">"继续字幕"</string>
     <string name="ui_pause_captions_dc66c" formatted="false">"暂停字幕"</string>
+    <string name="label_captionsource_screen_text_label" formatted="false">"屏幕字幕"</string>
+    <string name="label_captionsource_screen_text_explanation" formatted="false">"读取屏幕上已显示的字幕，而不是收听音频。请先在播放器中打开字幕。"</string>
+    <string name="ui_start_captions_from_screen_text" formatted="false">"开始读取屏幕字幕"</string>
+    <string name="ui_screen_text_models" formatted="false">"屏幕文字"</string>
     <string name="ui_start_speaking_aloud" formatted="false">"朗读"</string>
     <string name="ui_stop_speaking_aloud" formatted="false">"停止朗读"</string>
     <string name="ui_clear_previous_text_and_pending_translations_4cbd5" formatted="false">"清除此前文本和待处理翻译"</string>

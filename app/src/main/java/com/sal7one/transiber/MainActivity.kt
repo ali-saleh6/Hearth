@@ -169,7 +169,14 @@ class MainActivity : AppCompatActivity() {
     FeatureBackdrop(artwork = if (atHome) null else R.drawable.home_captions,
      tint = androidx.compose.ui.graphics.Color(0xFF448EFF)) {
     Scaffold(containerColor = androidx.compose.ui.graphics.Color.Transparent, contentColor = MaterialTheme.colorScheme.onBackground, topBar = {
-     TopAppBar(colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .55f)), title = { Text(if (atHome) "Hearth" else when(page) {
+     TopAppBar(colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .55f)), title = { if (atHome) Column {
+       Text("Hearth", style = MaterialTheme.typography.titleMedium)
+       // Build identity: sideloaded APKs reuse one package name and version,
+       // and the app bar is the one place short enough never to be clipped.
+       Text("${BuildConfig.VERSION_NAME} · ${BuildConfig.BUILD_ID}",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+      } else Text(when(page) {
       0 -> uiText(R.string.label_maintab_captions_title); 1 -> uiText(R.string.ui_models_f3798); 2 -> uiText(R.string.nav_downloads); 3 -> uiText(R.string.label_maintab_settings_title)
       4 -> uiText(R.string.nav_speech_settings); 5 -> uiText(R.string.nav_advanced_captions)
       8 -> uiText(R.string.ui_local_benchmark_3acfe); 9 -> uiText(R.string.label_settingsfeature_translation_label); 12 -> uiText(R.string.label_settingsfeature_voices_label); 13 -> uiText(R.string.ui_appearance_navigation_433af); 14 -> uiText(R.string.ui_phone_shortcuts_b969d); 15 -> uiText(R.string.ui_easy_setup_35fb5); 16 -> uiText(R.string.caption_history_title); else -> uiText(R.string.nav_help)

@@ -66,6 +66,11 @@ RUN set -eux; \
 # not invalidate the NDK layer above and force a multi-GB re-download.
 RUN sdkmanager --install "build-tools;35.0.0" > /dev/null
 
+# The repository arrives as a bind mount owned by the host user, so git refuses
+# it as "dubious ownership" and app/build.gradle.kts cannot read the revision
+# for BUILD_ID. Trust the one path we mount.
+RUN git config --global --add safe.directory /workspace
+
 # scripts/verify-release.py resolves the NDK and build-tools through ANDROID_HOME.
 WORKDIR /workspace
 ENTRYPOINT ["/bin/bash", "-lc"]

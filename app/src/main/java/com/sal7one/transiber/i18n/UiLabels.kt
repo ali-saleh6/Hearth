@@ -81,11 +81,13 @@ internal fun UiText.label(value: com.sal7one.transiber.caption.CaptionMode): Str
 internal fun UiText.label(value: com.sal7one.transiber.caption.CaptionSource): String = this(when (value) {
     com.sal7one.transiber.caption.CaptionSource.PLAYBACK_CAPTURE -> R.string.label_captionsource_playback_capture_label
     com.sal7one.transiber.caption.CaptionSource.MIC -> R.string.label_captionsource_mic_label
+    com.sal7one.transiber.caption.CaptionSource.SCREEN_TEXT -> R.string.label_captionsource_screen_text_label
 })
 
 internal fun UiText.explanation(value: com.sal7one.transiber.caption.CaptionSource): String = this(when (value) {
     com.sal7one.transiber.caption.CaptionSource.PLAYBACK_CAPTURE -> R.string.label_captionsource_playback_capture_explanation
     com.sal7one.transiber.caption.CaptionSource.MIC -> R.string.label_captionsource_mic_explanation
+    com.sal7one.transiber.caption.CaptionSource.SCREEN_TEXT -> R.string.label_captionsource_screen_text_explanation
 })
 
 internal fun UiText.label(value: com.sal7one.transiber.caption.CaptionEngineChoice): String = this(when (value) {
@@ -191,6 +193,7 @@ internal fun UiText.modelSection(id: String): String = when (id) {
     "Speech" -> this(R.string.ui_speech_d00d8)
     "Translation" -> this(R.string.label_settingsfeature_translation_label)
     "Voices" -> this(R.string.ui_voices_40273)
+    "Screen text" -> this(R.string.ui_screen_text_models)
     else -> id
 }
 
@@ -206,6 +209,21 @@ internal fun UiText.languageLabel(option: com.sal7one.common_jni.language.Langua
         else "${option.nativeName} · $translated"
 }
 
+internal fun UiText.label(profile: com.sal7one.transiber.ocr.OcrProfile): String = when(profile.id) {
+    "latin" -> this(R.string.ocr_latin)
+    "cjk" -> this(R.string.ocr_cjk)
+    "arabic" -> this(R.string.ocr_arabic)
+    "cyrillic" -> this(R.string.ocr_cyrillic)
+    "manga" -> this(R.string.ocr_manga)
+    "meiki" -> this(R.string.ocr_meiki)
+    else -> profile.label
+}
+internal fun UiText.description(profile: com.sal7one.transiber.ocr.OcrProfile): String = when(profile.id) {
+    "manga" -> this(R.string.ocr_manga_details)
+    "meiki" -> this(R.string.ocr_meiki_details)
+    "latin", "cjk", "arabic", "cyrillic" -> this(R.string.ocr_printed)
+    else -> profile.description
+}
 internal fun UiText.installation(source: com.sal7one.transiber.models.ModelSource): String = when(source.id) {
     "nemotron-3.5-asr-0.6b" -> this(R.string.install_nemotron)
     "qwen3-asr-0.6b" -> this(R.string.install_qwen)

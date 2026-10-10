@@ -3,6 +3,7 @@ package com.sal7one.transiber.downloads
 import com.sal7one.common_jni.translation.TranslationCatalog
 import com.sal7one.transiber.models.SpeechDownloads
 import com.sal7one.transiber.models.SpeechArtifactCatalog
+import com.sal7one.transiber.ocr.OcrCatalog
 import com.sal7one.transiber.voice.VoiceCatalog
 import com.sal7one.transiber.translation.MarianPackage
 
@@ -22,6 +23,7 @@ internal object DownloadAssets {
         SpeechArtifactCatalog.find(id)?.takeIf { it.kind == com.sal7one.transiber.models.SpeechArtifactKind.WHISPER }?.let {
             return DownloadAsset(id, it.url, it.bytes, it.sha256, it.installedBytes)
         }
+        OcrCatalog.find(id)?.let { return DownloadAsset(id, it.url, it.bytes, it.sha256, it.bytes) }
         VoiceCatalog.find(id)?.let { return DownloadAsset(id, it.url, it.bytes, it.sha256, it.bytes) }
         return null
     }

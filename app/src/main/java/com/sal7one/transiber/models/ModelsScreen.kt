@@ -45,7 +45,7 @@ fun ModelsScreen(onDownloads: () -> Unit = {}, onVoices: () -> Unit = {}, initia
     val pages = rememberSaveableStateHolder()
     Column(Modifier.fillMaxSize()) {
         FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Speech", "Translation", "Camera", "Voices").forEach { group ->
+            listOf("Speech", "Translation", "Screen text", "Voices").forEach { group ->
                 FilterChip(selected = section == group, onClick = { section = group }, label = { Text(uiText.modelSection(group)) })
             }
         }
@@ -58,6 +58,7 @@ fun ModelsScreen(onDownloads: () -> Unit = {}, onVoices: () -> Unit = {}, initia
                     "Speech" -> {
                         com.sal7one.transiber.settings.SettingsSpeechLocalUi(config, update)
                     }
+                    "Screen text" -> com.sal7one.transiber.settings.SettingsOcrLocalUi(onDownloads)
                     "Translation" -> {
                         Text(uiText(UiR.string.ui_local_translation_010cc), style = MaterialTheme.typography.titleLarge)
                         Text(uiText(UiR.string.ui_language_packs_or_text_models_for_on_device_translation_0d656), style = MaterialTheme.typography.bodySmall)

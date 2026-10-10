@@ -40,7 +40,10 @@ internal fun HomeServiceCard(
         modifier = modifier.fillMaxWidth().padding(vertical = 18.dp)) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Image(painterResource(artwork), contentDescription = null, contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().aspectRatio(if (compactArtwork) 2.6f else 1.08f))
+                modifier = Modifier.fillMaxWidth().then(
+                    // Fixed height, not an aspect ratio: a wide TV card would
+                    // otherwise scale the artwork past the height of the panel.
+                    if (compactArtwork) Modifier.height(132.dp) else Modifier.aspectRatio(1.08f)))
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(uiText.title(service), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
                 Text(uiText.description(service), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -87,6 +87,10 @@
     <string name="ui_drag_to_move_captions_51a37" formatted="false">"Drag to move captions"</string>
     <string name="ui_resume_captions_b31f8" formatted="false">"Resume captions"</string>
     <string name="ui_pause_captions_dc66c" formatted="false">"Pause captions"</string>
+    <string name="label_captionsource_screen_text_label" formatted="false">"On-screen captions"</string>
+    <string name="label_captionsource_screen_text_explanation" formatted="false">"Reads subtitles already drawn on the screen instead of listening. Switch captions on in the player first."</string>
+    <string name="ui_start_captions_from_screen_text" formatted="false">"Start reading on-screen captions"</string>
+    <string name="ui_screen_text_models" formatted="false">"Screen text"</string>
     <string name="ui_start_speaking_aloud" formatted="false">"Speak aloud"</string>
     <string name="ui_stop_speaking_aloud" formatted="false">"Stop speaking aloud"</string>
     <string name="ui_clear_previous_text_and_pending_translations_4cbd5" formatted="false">"Clear previous text and pending translations"</string>

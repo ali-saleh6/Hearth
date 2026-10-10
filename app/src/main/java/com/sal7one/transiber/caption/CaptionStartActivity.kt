@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -169,15 +170,15 @@ private fun CaptionStartScreen(requestedSource: CaptionSource?, onDone: () -> Un
     }
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-            startAfterCleanup(CaptionSource.PLAYBACK_CAPTURE, result.data)
+            startAfterCleanup(source, result.data)
         }
     }
     val launchCapture: () -> Unit = {
-        if (source == CaptionSource.PLAYBACK_CAPTURE) {
+        if (source == CaptionSource.PLAYBACK_CAPTURE || source == CaptionSource.SCREEN_TEXT) {
             val manager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projectionLauncher.launch(manager.createScreenCaptureIntent())
         } else {
-            startAfterCleanup(CaptionSource.MIC, null)
+            startAfterCleanup(source, null)
         }
     }
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -197,7 +198,10 @@ private fun CaptionStartScreen(requestedSource: CaptionSource?, onDone: () -> Un
     }
     val requestCapture: () -> Unit = {
         // Playback capture ALSO requires RECORD_AUDIO, even though it does not use the mic.
-        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) !=
+        // Screen text records nothing, so asking for the microphone there would
+        // be an unexplained prompt for a permission the session never uses.
+        if (source != CaptionSource.SCREEN_TEXT &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED) {
             micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         } else requestNotifications()
@@ -267,6 +271,15 @@ private fun CaptionStartScreen(requestedSource: CaptionSource?, onDone: () -> Un
                 ) {
                     Icon(Icons.Default.Mic, null)
                     Text(uiText(UiR.string.ui_start_captions_from_microphone_41530))
+                }
+
+                CaptionSource.SCREEN_TEXT -> Button(
+                    onClick = requestCapture,
+                    enabled = !starting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.Subtitles, null)
+                    Text(uiText(UiR.string.ui_start_captions_from_screen_text))
                 }
             }
 

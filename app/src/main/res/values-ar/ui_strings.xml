@@ -87,6 +87,10 @@
     <string name="ui_drag_to_move_captions_51a37" formatted="false">"اسحب لتحريك النص"</string>
     <string name="ui_resume_captions_b31f8" formatted="false">"استئناف النص المباشر"</string>
     <string name="ui_pause_captions_dc66c" formatted="false">"إيقاف النص مؤقتًا"</string>
+    <string name="label_captionsource_screen_text_label" formatted="false">"النص الظاهر على الشاشة"</string>
+    <string name="label_captionsource_screen_text_explanation" formatted="false">"يقرأ الترجمة المعروضة على الشاشة بدل الاستماع. فعّل الترجمة في المشغّل أولًا."</string>
+    <string name="ui_start_captions_from_screen_text" formatted="false">"ابدأ قراءة النص الظاهر على الشاشة"</string>
+    <string name="ui_screen_text_models" formatted="false">"النص الظاهر"</string>
     <string name="ui_start_speaking_aloud" formatted="false">"النطق بصوت عالٍ"</string>
     <string name="ui_stop_speaking_aloud" formatted="false">"إيقاف النطق بصوت عالٍ"</string>
     <string name="ui_clear_previous_text_and_pending_translations_4cbd5" formatted="false">"مسح النص السابق والترجمات المعلّقة"</string>

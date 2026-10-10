@@ -91,6 +91,9 @@ fun CaptionHome(
         else -> !com.sal7one.transiber.byok.cloudSpeechKeyRequired(CloudConfigStore.sttMode(context),CloudConfigStore.provider(context)) || ApiKeyStore.hasOpenAiKey(context)
     }
     val engineReady = when {
+        // Screen text is read from pixels, so no speech model or cloud key
+        // gates it; requiring one would make the source impossible to start.
+        cfg.source == CaptionSource.SCREEN_TEXT -> true
         isCloud -> keyReady
         cfg.effectiveEngine.speechBackend != null -> speech.any {
             it.profile.backend == cfg.effectiveEngine.speechBackend && (cfg.modelId.isBlank() || cfg.modelId == it.id)
@@ -120,8 +123,10 @@ fun CaptionHome(
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             Column(Modifier.fillMaxWidth().glassPanel().padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-            HomeChips(uiText(UiR.string.ui_audio_acdac), if (cfg.source == CaptionSource.MIC) uiText(UiR.string.ui_microphone_24280) else uiText(UiR.string.ui_device_audio_c5702),
-                listOf(uiText(UiR.string.ui_device_audio_c5702) to CaptionSource.PLAYBACK_CAPTURE, uiText(UiR.string.ui_microphone_24280) to CaptionSource.MIC), enabled = !running) {
+            HomeChips(uiText(UiR.string.ui_audio_acdac), uiText.label(cfg.source),
+                listOf(uiText(UiR.string.ui_device_audio_c5702) to CaptionSource.PLAYBACK_CAPTURE,
+                    uiText(UiR.string.ui_microphone_24280) to CaptionSource.MIC,
+                    uiText(UiR.string.label_captionsource_screen_text_label) to CaptionSource.SCREEN_TEXT), enabled = !running) {
                 update { c -> c.copy(source = it) }
             }
             HomeChips(uiText(UiR.string.ui_show_d97d1), if (cfg.mode == CaptionMode.CAPTIONS) uiText(UiR.string.ui_original_captions_9d268) else uiText(UiR.string.ui_translation_ac26a),

@@ -20,6 +20,9 @@ if ! docker image inspect "$image" >/dev/null 2>&1; then
     -f "$repo/docker/android-build.Dockerfile" -t "$image" "$repo"
 fi
 
+# /root/.android holds the debug keystore. Without a volume, --rm throws it
+# away and every build is signed with a fresh random key, so installing over a
+# previous build fails with INSTALL_FAILED_UPDATE_INCOMPATIBLE.
 # gradle.properties asks for -Xmx6g, which the Docker VM cannot honour next to a
 # separate Kotlin daemon: the kernel OOM-kills the build daemon mid-R8. A
 # command-line -D overrides gradle.properties, so bound both JVMs to fit.
@@ -37,7 +40,12 @@ echo "==> Running: $command"
 docker run --rm --platform=linux/amd64 \
   -v "$repo:/workspace" \
   -v hearth-gradle:/gradle \
+  -v hearth-android-home:/root/.android \
   "$image" "$command"
 
 echo "==> APKs on the host:"
 find "$repo/app/build/outputs/apk" -name '*.apk' -print 2>/dev/null || echo "  none produced"
+# Echo the identity compiled into this APK so a sideloaded install can be
+# matched back to a commit; the app shows the same string on its home screen.
+grep -rho 'BUILD_ID = ".*"' "$repo/app/build/generated/source/buildConfig" 2>/dev/null \
+  | sort -u | sed 's/^/==> /' || true

@@ -1,5 +1,7 @@
 package com.sal7one.transiber.downloads
 
+import com.sal7one.transiber.ocr.OcrCatalog
+import com.sal7one.transiber.ocr.OcrModels
 import com.sal7one.transiber.voice.VoiceCatalog
 import com.sal7one.transiber.voice.VoiceModels
 
@@ -203,6 +205,11 @@ class FileDownloads(private val context: Context) {
      val spec = TranslationCatalog.models.first { it.id == modelId }
      com.sal7one.common_jni.model.ModelIntegrity.inspect(LocalTranslationModels(File(context.filesDir, "translation-models")).file(spec), spec.sha256)
     }
+    OcrCatalog.find(modelId) != null -> {
+     val part = checkNotNull(OcrCatalog.find(modelId))
+     val file = OcrModels(File(context.filesDir, "ocr-models")).file(part)
+     check(file.inputStream().use { DownloadIntegrity.matches(it, checkNotNull(asset)) }) { "Installed OCR checksum failed" }
+    }
     VoiceCatalog.find(modelId) != null -> {
      val part = checkNotNull(VoiceCatalog.find(modelId))
      val file = VoiceModels(File(context.filesDir, "voice-models")).file(part)
@@ -262,6 +269,13 @@ class FileDownloads(private val context: Context) {
    val installed = context.contentResolver.openInputStream(uri(id))?.use { input ->
     VoiceModels(File(context.filesDir,"voice-models")).import(input,asset) {job.ensureActive()}
    } ?: error("Cannot open downloaded voice model")
+   return@withContext installed.id
+  }
+  OcrCatalog.find(modelId)?.let { asset ->
+   val job = currentCoroutineContext()
+   val installed = context.contentResolver.openInputStream(uri(id))?.use { input ->
+    OcrModels(File(context.filesDir, "ocr-models")).import(input, asset) { job.ensureActive() }
+   } ?: error("Cannot open downloaded OCR model")
    return@withContext installed.id
   }
   val speech = SpeechDownloads.find(modelId)

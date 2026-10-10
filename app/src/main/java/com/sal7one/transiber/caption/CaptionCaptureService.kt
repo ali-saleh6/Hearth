@@ -63,6 +63,11 @@ class CaptionCaptureService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private var mediaSession: android.support.v4.media.session.MediaSessionCompat? = null
+    private var lastSpeakToggle = 0L
+    private var screenReader: ScreenTextReader? = null
+
+    private fun screenOcrProfile(config: CaptionOverlayConfig): String =
+        com.sal7one.transiber.ocr.OcrCatalog.profileForLanguage(config.streamLanguage).id
 
     /** Remote/media-row controls: play-pause mirrors the notification action, stop kills captions and TTS. */
     private fun syncMediaSession(paused: Boolean) {
@@ -74,6 +79,30 @@ class CaptionCaptureService : Service() {
                 override fun onPlay() { onStartCommand(Intent().setAction(ACTION_RESUME), 0, 0) }
                 override fun onPause() { onStartCommand(Intent().setAction(ACTION_PAUSE_ONLY), 0, 0) }
                 override fun onStop() { onStartCommand(Intent().setAction(ACTION_STOP), 0, 0) }
+                /**
+                 * Hold play-pause to turn spoken Arabic on, hold again to turn
+                 * it off. The overlay window stays non-focusable so it never
+                 * steals keys from the player underneath, which leaves the
+                 * media button as the only control a bare remote can reach.
+                 * A short press still pauses captions.
+                 */
+                override fun onMediaButtonEvent(intent: Intent): Boolean {
+                    @Suppress("DEPRECATION")
+                    val key = intent.getParcelableExtra<android.view.KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                    val held = key != null &&
+                        key.action == android.view.KeyEvent.ACTION_DOWN &&
+                        key.keyCode in setOf(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                            android.view.KeyEvent.KEYCODE_MEDIA_PLAY, android.view.KeyEvent.KEYCODE_HEADSETHOOK) &&
+                        (key.isLongPress || key.repeatCount > 0)
+                    // ACTION_DOWN repeats while the key is held, so debounce:
+                    // one hold is one toggle, not a burst of them.
+                    if (held && android.os.SystemClock.elapsedRealtime() - lastSpeakToggle > 800) {
+                        lastSpeakToggle = android.os.SystemClock.elapsedRealtime()
+                        onStartCommand(Intent().setAction(ACTION_SPEAK), 0, 0)
+                        return true
+                    }
+                    return !held && super.onMediaButtonEvent(intent)
+                }
             })
             mediaSession = created
             created.isActive = true
@@ -138,13 +167,29 @@ class CaptionCaptureService : Service() {
                     else @Suppress("DEPRECATION") intent.getParcelableExtra<Intent>(EXTRA_PROJECTION_RESULT)
                 startup = scope.launch {
                     try {
+                        val config = CaptionConfigStore.config(this@CaptionCaptureService).first().copy(source = source, paused = false)
+                        overlay.show(source)
+                        if (source == CaptionSource.SCREEN_TEXT) {
+                            val token = acquireProjection(requireNotNull(data) {
+                                "On-screen captions: media projection consent is missing"
+                            })
+                            if (!active) return@launch
+                            screenReader = ScreenTextReader(
+                                context = this@CaptionCaptureService,
+                                projection = token,
+                                profileId = screenOcrProfile(config),
+                                onText = { text -> engine.submitScreenText(text) },
+                                onError = { message -> fail("On-screen captions: $message") },
+                            ).also { it.start() }
+                            engine.start(config) { if (active) updateNotification() }
+                            return@launch
+                        }
                         check(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                             "Audio capture: RECORD_AUDIO permission is missing"
                         }
-                        val config = CaptionConfigStore.config(this@CaptionCaptureService).first().copy(source = source, paused = false)
-                        overlay.show(source)
                         val record = when (source) {
                                 CaptionSource.MIC -> buildMicRecord()
+                                CaptionSource.SCREEN_TEXT -> error("Screen text does not record audio")
                                 CaptionSource.PLAYBACK_CAPTURE -> buildPlaybackRecord(requireNotNull(data) {
                                     "Playback capture: media projection consent is missing"
                                 })
@@ -191,22 +236,25 @@ class CaptionCaptureService : Service() {
     private fun buildMicRecord() = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION,
         SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferBytes())
 
-    private suspend fun buildPlaybackRecord(data: Intent): AudioRecord {
-        check(Build.VERSION.SDK_INT >= 29) { "Device audio capture requires Android 10 or newer" }
-        // Projection ownership is serialized on Main, including revocation callbacks.
-        val token = withContext(Dispatchers.Main.immediate) {
+    /** Projection ownership is serialized on Main, including revocation callbacks. */
+    private suspend fun acquireProjection(data: Intent): MediaProjection =
+        withContext(Dispatchers.Main.immediate) {
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             requireNotNull(manager.getMediaProjection(Activity.RESULT_OK, data)) { "MediaProjectionManager returned no projection" }.also { token ->
                 projection = token
                 val callback = object : MediaProjection.Callback() {
                     override fun onStop() {
-                        if (projection === token && active) fail("Playback capture: MediaProjection stopped by the system or user")
+                        if (projection === token && active) fail("Screen capture: MediaProjection stopped by the system or user")
                     }
                 }
                 projectionCallback = callback
                 token.registerCallback(callback, Handler(Looper.getMainLooper()))
             }
         }
+
+    private suspend fun buildPlaybackRecord(data: Intent): AudioRecord {
+        check(Build.VERSION.SDK_INT >= 29) { "Device audio capture requires Android 10 or newer" }
+        val token = acquireProjection(data)
         val playback = AudioPlaybackCaptureConfiguration.Builder(token)
             .addMatchingUsage(AudioAttributes.USAGE_MEDIA).addMatchingUsage(AudioAttributes.USAGE_GAME)
             .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN).build()
@@ -248,6 +296,10 @@ class CaptionCaptureService : Service() {
 
     private fun releaseCapture() {
         capturing = false
+        // Closing the reader also cancels and frees its native OCR session,
+        // which must happen before the projection it mirrors is stopped.
+        screenReader?.let { runCatching { it.close() } }
+        screenReader = null
         val record = recorder
         recorder = null
         runCatching { record?.stop() }

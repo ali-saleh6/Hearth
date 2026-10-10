@@ -32,7 +32,13 @@ internal suspend fun overlayPreflight(context: Context, shortcut: OverlayShortcu
         },
         SetupProbe("Native runtime", SetupFix.MODELS) { CommonJni.init(context.applicationContext); "Libraries initialized" },
     )
-    probes += SetupProbe("Speech recognition", if (config.engine == CaptionEngineChoice.CLOUD) SetupFix.CAPTIONS else SetupFix.MODELS) {
+    if (config.source == CaptionSource.SCREEN_TEXT) probes += SetupProbe("On-screen caption reader", SetupFix.MODELS) {
+        val profile = com.sal7one.transiber.ocr.OcrCatalog.profileForLanguage(config.streamLanguage)
+        val missing = com.sal7one.transiber.ocr.OcrModels(File(context.filesDir, "ocr-models")).missing(profile)
+        check(missing.isEmpty()) { "Install the screen text reader in Models: ${missing.joinToString { it.filename }}" }
+        profile.label
+    }
+    if (config.source != CaptionSource.SCREEN_TEXT) probes += SetupProbe("Speech recognition", if (config.engine == CaptionEngineChoice.CLOUD) SetupFix.CAPTIONS else SetupFix.MODELS) {
         when {
             config.engine == CaptionEngineChoice.CLOUD -> {
                 check(ByokPolicy.FEATURE_BYOK) { "Cloud speech is unavailable in the offline build." }

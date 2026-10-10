@@ -1,8 +1,28 @@
 import com.android.build.api.artifact.SingleArtifact
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 plugins {
  alias(libs.plugins.android.application)
  alias(libs.plugins.kotlin.android)
  alias(libs.plugins.kotlin.compose)
+}
+// Build identity for a sideloaded APK. Reinstalls reuse one package name and
+// version, so without this there is no way to tell which build is on a device.
+// The timestamp distinguishes rebuilds of the same commit; git failures fall
+// back rather than breaking the build.
+val buildStamp: String = run {
+ val git = { args: List<String> ->
+  runCatching {
+   val process = ProcessBuilder(args).directory(rootDir).redirectErrorStream(true).start()
+   val text = process.inputStream.bufferedReader().readText().trim()
+   if (process.waitFor() == 0) text else ""
+  }.getOrDefault("")
+ }
+ val revision = git(listOf("git", "rev-parse", "--short=9", "HEAD")).ifBlank { "nogit" }
+ val modified = if (git(listOf("git", "status", "--porcelain")).isBlank()) "" else "+"
+ val at = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneOffset.UTC).format(Instant.now())
+ "$revision$modified · $at UTC"
 }
 android {
  namespace = "com.sal7one.transiber"
@@ -13,6 +33,7 @@ android {
   targetSdk = 36
   versionCode = 81
   versionName = "0.23.8"
+  buildConfigField("String", "BUILD_ID", "\"$buildStamp\"")
   // armeabi-v7a keeps 32-bit Android TV installable: the heavy speech/translation
   // runtimes stay arm64-only and self-disable there, Vosk and ONNX still work.
   ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
