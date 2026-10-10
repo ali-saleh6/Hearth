@@ -322,6 +322,8 @@ class CaptionEngineController(
      * translator must stay out of the way, or it would translate the
      * already-translated output a second time. */
     @Volatile private var engineTranslatesToTarget = false
+    /** Set while a live translation session speaks the translation itself. */
+    @Volatile private var translatedAudio: com.sal7one.transiber.byok.TranslatedAudioPlayer? = null
 
     @Volatile private var resolvedSpokenLanguage = "auto"
     @Volatile private var activeRoute = CaptionTranslationRoute.ORIGINAL
@@ -560,6 +562,8 @@ class CaptionEngineController(
 
     private suspend fun loadEngine(config: CaptionOverlayConfig): LoadedCaptionEngine = withContext(Dispatchers.IO) {
         engineTranslatesToTarget = false
+        translatedAudio?.close()
+        translatedAudio = null
         val cloudMode = com.sal7one.transiber.byok.CloudConfigStore.sttMode(context)
         activeRoute = captionTranslationRoute(config, cloudMode)
         val spokenLanguage = CaptionLanguages.effectiveSource(config, cloudMode, captionLanguageModel(context, config))
@@ -639,17 +643,26 @@ class CaptionEngineController(
                             // second stage stays off.
                             engineTranslatesToTarget = true
                             com.sal7one.transiber.byok.OpenAiTranslateClient(
-                                apiKey = ApiKeyStore.getOpenAiKey(context).ifBlank {
+                                apiKey = ApiKeyStore.getOpenAiKey(context).ifBlank { com.sal7one.transiber.translation.ConversationTranslationSettings.openAiKey(context) }.ifBlank {
                                     throw IllegalStateException(
                                         "OpenAI API key missing — add it in the cloud settings",
                                     )
                                 },
                                 targetLanguage = config.target.languageTag,
-                            )
+                            ).also { client ->
+                                // The session returns translated speech as well as text:
+                                // play that voice directly instead of re-voicing the text.
+                                val player = com.sal7one.transiber.byok.TranslatedAudioPlayer(context) {
+                                    currentConfig.speakCaptions && !currentConfig.paused && !stopping
+                                }
+                                translatedAudio?.close()
+                                translatedAudio = player
+                                client.onAudio = player::write
+                            }
                         } else {
                             com.sal7one.transiber.byok.OpenAiRealtimeClient(
                                 sourceLanguage = spokenLanguage,
-                                apiKey = ApiKeyStore.getOpenAiKey(context).ifBlank {
+                                apiKey = ApiKeyStore.getOpenAiKey(context).ifBlank { com.sal7one.transiber.translation.ConversationTranslationSettings.openAiKey(context) }.ifBlank {
                                     throw IllegalStateException(
                                         "OpenAI API key missing — add it in the cloud settings",
                                     )
@@ -1216,6 +1229,7 @@ class CaptionEngineController(
 
     private fun speakLine(config: CaptionOverlayConfig, text: String, detectedLanguage: String? = null) {
         if (!config.speakCaptions || text.isBlank()) return
+        if (translatedAudio != null) return // the translation session is already speaking it
         val generation = sessionGeneration
         scope.launch(Dispatchers.Main.immediate) {
             if (generation != sessionGeneration || !currentConfig.speakCaptions || currentConfig.paused || stopping) return@launch
@@ -1249,10 +1263,12 @@ class CaptionEngineController(
 
     /** Stop the current utterance immediately (remote "silence voice"). */
     fun silenceSpeaker() {
+        translatedAudio?.silence()
         speaker?.stop()
     }
 
     private fun releaseSpeaker() {
+        translatedAudio?.silence()
         speaker?.release()
         speaker = null
         speakerChoice = null
@@ -1460,6 +1476,8 @@ class CaptionEngineController(
         if (stale != null || staleSpeech != null) {
             engineCleanup = cleanupScope.launch { try { stale?.release() } finally { staleSpeech?.close() } }
         }
+        translatedAudio?.close()
+        translatedAudio = null
         // Release the ~120 MB translation engine when the session stops.
         // Off the caller thread (stop()/teardown can arrive on Main) and the
         // native side keeps the engine alive until an in-flight translate

@@ -16,6 +16,9 @@ class OpenAiTranslateClient(
     override var onFinal: ((String) -> Unit)? = null
     override var onError: ((String) -> Unit)? = null
     override var onConnected: (() -> Unit)? = null
+    /** Translated speech, PCM16 mono 24 kHz; null keeps the session text-only. */
+    var onAudio: ((ByteArray) -> Unit)? = null
+    private val seenEvents = java.util.Collections.synchronizedSet(mutableSetOf<String>())
     private val resampler = Pcm16Resampler(16_000, 24_000)
     @Volatile private var socket: WebSocket? = null
     @Volatile private var closed = false
@@ -38,7 +41,15 @@ class OpenAiTranslateClient(
                 if (closed) return
                 try {
                     val event = JSONObject(text)
-                    when (event.optString("type")) {
+                    val type = event.optString("type")
+                    // Names only, once each: payloads carry audio and transcript.
+                    if (com.sal7one.transiber.BuildConfig.DEBUG && seenEvents.add(type))
+                        android.util.Log.d("OpenAiTranslate", "Event $type keys=${event.keys().asSequence().toList()}" +
+                            " rate=${event.opt("sample_rate")} channels=${event.opt("channels")} format=${event.opt("format")}")
+                    when (type) {
+                        "session.output_audio.delta" -> onAudio?.let { play ->
+                            play(android.util.Base64.decode(event.getString("delta"), android.util.Base64.DEFAULT))
+                        }
                         "session.updated" -> onConnected?.invoke()
                         "session.output_transcript.delta" -> synchronized(transcript) {
                             lastDeltaNs = System.nanoTime()

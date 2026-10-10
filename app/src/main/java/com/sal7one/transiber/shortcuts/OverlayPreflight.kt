@@ -47,6 +47,8 @@ internal suspend fun overlayPreflight(context: Context, shortcut: OverlayShortcu
                     CloudConfigStore.SttMode.STREAMING_ELEVENLABS -> ApiKeyStore.getElevenLabsKey(context)
                     CloudConfigStore.SttMode.STREAMING_DEEPGRAM -> ApiKeyStore.getDeepgramKey(context)
                     CloudConfigStore.SttMode.STREAMING_ASSEMBLYAI -> ApiKeyStore.getAssemblyAiKey(context)
+                    CloudConfigStore.SttMode.STREAMING_OPENAI -> ApiKeyStore.getOpenAiKey(context)
+                        .ifBlank { com.sal7one.transiber.translation.ConversationTranslationSettings.openAiKey(context) }
                     else -> ApiKeyStore.getOpenAiKey(context)
                 }
                 ApiKeyStore.lastFailure?.let { error(it) }

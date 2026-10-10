@@ -47,6 +47,14 @@ internal object ConversationTranslationSettings {
     fun endpoint(context: Context, provider: TextTranslationProvider): String = prefs(context).getString("${provider.id}.endpoint", provider.defaultEndpoint) ?: provider.defaultEndpoint
     fun region(context: Context, provider: TextTranslationProvider): String = prefs(context).getString("${provider.id}.region", "") ?: ""
     fun hasKey(context: Context, provider: TextTranslationProvider): Boolean = prefs(context).contains("${provider.id}.key")
+    /**
+     * The OpenAI key saved here, for OpenAI's own live speech endpoints. Only
+     * those may reuse it: the speech key slot also serves other
+     * OpenAI-compatible hosts, which must never receive an OpenAI key.
+     */
+    fun openAiKey(context: Context): String = runCatching {
+        if (ByokPolicy.FEATURE_BYOK && hasKey(context, TextTranslationProvider.OPENAI)) readKey(context, TextTranslationProvider.OPENAI) else ""
+    }.getOrDefault("")
     fun connection(context: Context, provider: TextTranslationProvider): CloudTranslationConnection {
         check(ByokPolicy.FEATURE_BYOK) { "Cloud translation is unavailable in the offline build." }
         return CloudTranslationConnection(provider, endpoint(context, provider), readKey(context, provider), region(context, provider))

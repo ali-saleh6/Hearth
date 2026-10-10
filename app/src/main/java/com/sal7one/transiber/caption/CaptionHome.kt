@@ -88,6 +88,8 @@ fun CaptionHome(
         CloudConfigStore.SttMode.STREAMING_ELEVENLABS -> ApiKeyStore.getElevenLabsKey(context).isNotBlank()
         CloudConfigStore.SttMode.STREAMING_DEEPGRAM -> ApiKeyStore.getDeepgramKey(context).isNotBlank()
         CloudConfigStore.SttMode.STREAMING_ASSEMBLYAI -> ApiKeyStore.getAssemblyAiKey(context).isNotBlank()
+        CloudConfigStore.SttMode.STREAMING_OPENAI -> ApiKeyStore.hasOpenAiKey(context) ||
+            com.sal7one.transiber.translation.ConversationTranslationSettings.openAiKey(context).isNotBlank()
         else -> !com.sal7one.transiber.byok.cloudSpeechKeyRequired(CloudConfigStore.sttMode(context),CloudConfigStore.provider(context)) || ApiKeyStore.hasOpenAiKey(context)
     }
     val engineReady = when {
